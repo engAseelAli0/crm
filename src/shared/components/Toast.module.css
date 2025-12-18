@@ -1,0 +1,187 @@
+/* Toast Container */
+.toastContainer {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    /* Changed from right: 20px */
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+    /* Allow clicking through container */
+}
+
+/* Individual Toast */
+.toast {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 300px;
+    max-width: 400px;
+    padding: 16px;
+    border-radius: 16px;
+    background: rgba(15, 23, 42, 0.85);
+    /* Dark semi-transparent */
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    font-family: 'Cairo', sans-serif;
+    overflow: hidden;
+    position: relative;
+    animation: slideIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    transition: all 0.3s ease;
+}
+
+.toast.exiting {
+    animation: slideOut 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+/* Types */
+.success {
+    border-left: 4px solid #10b981;
+    background: linear-gradient(90deg, rgba(16, 185, 129, 0.1) 0%, rgba(15, 23, 42, 0.9) 100%);
+}
+
+.error {
+    border-left: 4px solid #ef4444;
+    background: linear-gradient(90deg, rgba(239, 68, 68, 0.1) 0%, rgba(15, 23, 42, 0.9) 100%);
+}
+
+.warning {
+    border-left: 4px solid #f59e0b;
+    background: linear-gradient(90deg, rgba(245, 158, 11, 0.1) 0%, rgba(15, 23, 42, 0.9) 100%);
+}
+
+.info {
+    border-left: 4px solid #3b82f6;
+    background: linear-gradient(90deg, rgba(59, 130, 246, 0.1) 0%, rgba(15, 23, 42, 0.9) 100%);
+}
+
+/* Content */
+.iconWrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.success .iconWrapper {
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.2);
+}
+
+.error .iconWrapper {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.2);
+}
+
+.warning .iconWrapper {
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.2);
+}
+
+.info .iconWrapper {
+    color: #3b82f6;
+    background: rgba(59, 130, 246, 0.2);
+}
+
+.content {
+    flex: 1;
+}
+
+.title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 2px;
+}
+
+.message {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.7);
+    line-height: 1.4;
+}
+
+.closeBtn {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.4);
+    cursor: pointer;
+    transition: color 0.2s;
+    display: flex;
+    align-items: center;
+}
+
+.closeBtn:hover {
+    color: white;
+}
+
+/* Progress Bar */
+.progressBar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    /* RTL adjusted if needed, usually just fill width */
+    height: 3px;
+    background: rgba(255, 255, 255, 0.3);
+    width: 100%;
+    transform-origin: left;
+    animation: progress linear forwards;
+}
+
+.success .progressBar {
+    background: #10b981;
+}
+
+.error .progressBar {
+    background: #ef4444;
+}
+
+.warning .progressBar {
+    background: #f59e0b;
+}
+
+.info .progressBar {
+    background: #3b82f6;
+}
+
+/* Animations */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20%) scale(0.9);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+}
+
+@keyframes slideOut {
+    from {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(-20%) scale(0.9);
+    }
+}
+
+@keyframes progress {
+    from {
+        width: 100%;
+    }
+
+    to {
+        width: 0%;
+    }
+}

@@ -1,0 +1,143 @@
+.container {
+    width: 100%;
+    max-width: 800px;
+    background: rgba(30, 41, 59, 0.5);
+    border-radius: 16px;
+    padding: 2rem;
+    z-index: 2;
+    border: 1px solid rgba(99, 102, 241, 0.1);
+    backdrop-filter: blur(10px);
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #e2e8f0;
+}
+
+.searchBox {
+    padding: 0.6rem 1rem;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(30, 41, 59, 0.9);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    min-width: 200px;
+}
+
+.searchInput {
+    background: transparent;
+    border: none;
+    color: white;
+    outline: none;
+    width: 100%;
+}
+
+.list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.item {
+    padding: 1rem;
+    background: rgba(15, 23, 42, 0.5);
+    border-radius: 10px;
+    margin-bottom: 0.75rem;
+    border: 1px solid rgba(99, 102, 241, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s ease;
+}
+
+.item:hover {
+    background: rgba(99, 102, 241, 0.1);
+    border-color: rgba(99, 102, 241, 0.3);
+}
+
+.itemInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.itemHeader {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.number {
+    font-family: monospace;
+    direction: ltr;
+    color: #60a5fa;
+    font-weight: 600;
+}
+
+.status {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.statusSuccess {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22c55e;
+}
+
+.statusCancelled {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.itemMeta {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.eyeButton {
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #818cf8;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.eyeButton:hover {
+    background: rgba(99, 102, 241, 0.2);
+    transform: scale(1.05);
+}
+
+.empty {
+    text-align: center;
+    padding: 2rem;
+    color: #94a3b8;
+}
+
+.statusDisconnected {
+    background: rgba(249, 115, 22, 0.1);
+    color: #f97316;
+}
+
+.statusAnnoying {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}

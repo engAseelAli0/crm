@@ -1,0 +1,101 @@
+.row {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.row:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.cell {
+    padding: 1.5rem;
+}
+
+.userCell {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.userName {
+    font-weight: 600;
+    font-size: 1.05rem;
+}
+
+.userHandle {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.statsCell {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.statRow {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.statText {
+    font-size: 0.9rem;
+}
+
+.roleBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border: 1px solid transparent;
+}
+
+.roleAdmin {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.1));
+    color: #60a5fa;
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+.roleAgent {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.1));
+    color: #34d399;
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.iconBtn {
+    background: transparent;
+    border: 1px solid transparent;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btnEdit {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+}
+
+.btnDelete {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+}
+
+.btnDisabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
