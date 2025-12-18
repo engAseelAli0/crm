@@ -29,7 +29,7 @@ const ComplaintTypeConfig = () => {
             const data = await ComplaintManager.getComplaintTypes();
             setTypes(data);
         } catch (error) {
-            toast.error(t('common.error'), t('complaints.loadTypesError') || 'Failed to load types');
+            toast.error(t('common.error'), t('complaints.loadTypesError'));
         } finally {
             setIsLoading(false);
         }
@@ -95,18 +95,18 @@ const ComplaintTypeConfig = () => {
                     name: formData.name,
                     fields: formData.fields
                 });
-                toast.success(t('common.success'), t('complaints.updateTypeSuccess') || 'Type updated successfully');
+                toast.success(t('common.success'), t('complaints.updateTypeSuccess'));
             } else {
                 await ComplaintManager.createComplaintType({
                     name: formData.name,
                     fields: formData.fields
                 });
-                toast.success(t('common.success'), t('complaints.createTypeSuccess') || 'Type created successfully');
+                toast.success(t('common.success'), t('complaints.createTypeSuccess'));
             }
             handleCloseModal();
             loadTypes();
         } catch (error) {
-            toast.error(t('common.error'), t('complaints.saveError') || 'Error saving type');
+            toast.error(t('common.error'), t('complaints.saveError'));
         }
     };
 
@@ -114,10 +114,10 @@ const ComplaintTypeConfig = () => {
         if (!window.confirm(t('complaints.deleteTypeConfirm'))) return;
         try {
             await ComplaintManager.deleteComplaintType(id);
-            toast.success(t('common.success'), t('complaints.deleteTypeSuccess') || 'Type deleted successfully');
+            toast.success(t('common.success'), t('complaints.deleteTypeSuccess'));
             loadTypes();
         } catch (error) {
-            toast.error(t('common.error'), t('complaints.deleteError') || 'Failed to delete');
+            toast.error(t('common.error'), t('complaints.deleteError'));
         }
     };
 

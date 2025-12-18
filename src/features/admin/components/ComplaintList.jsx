@@ -27,6 +27,10 @@ const ComplaintList = () => {
     const [suspensionReason, setSuspensionReason] = useState('');
     const [complaintToSuspend, setComplaintToSuspend] = useState(null);
 
+    // Reminder Logs Modal
+    const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
+    const [selectedReminderLogs, setSelectedReminderLogs] = useState([]);
+
     useEffect(() => {
         loadComplaints();
     }, []);
@@ -45,7 +49,7 @@ const ComplaintList = () => {
             setComplaints(sorted);
         } catch (error) {
             console.error(error);
-            toast.error(t('common.error'), t('complaints.loadError') || 'Failed to load complaints');
+            toast.error(t('common.error'), t('complaints.loadError'));
         } finally {
             setIsLoading(false);
         }
@@ -106,10 +110,10 @@ const ComplaintList = () => {
             if (reason) updates.suspension_reason = reason;
 
             await ComplaintManager.updateComplaint(id, updates);
-            toast.success(t('common.success'), t('complaints.statusUpdateSuccess') || 'Status updated');
+            toast.success(t('common.success'), t('complaints.statusUpdateSuccess'));
             loadComplaints();
         } catch (error) {
-            toast.error(t('common.error'), t('complaints.updateError') || 'Failed to update status');
+            toast.error(t('common.error'), t('complaints.updateError'));
         }
     };
 
@@ -208,7 +212,7 @@ const ComplaintList = () => {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead style={{ background: 'rgba(15, 23, 42, 0.5)', position: 'sticky', top: 0 }}>
                         <tr>
-                            <th style={{ padding: '1rem', textAlign: 'right', color: '#94a3b8', fontSize: '0.85rem' }}>{t('complaints.id')}</th>
+                            <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>{t('التذكيرات')}</th>
                             <th style={{ padding: '1rem', textAlign: 'right', color: '#94a3b8', fontSize: '0.85rem' }}>{t('complaints.customerName')}</th>
                             <th style={{ padding: '1rem', textAlign: 'right', color: '#94a3b8', fontSize: '0.85rem' }}>{t('complaints.type')}</th>
                             <th style={{ padding: '1rem', textAlign: 'right', color: '#94a3b8', fontSize: '0.85rem' }}>{t('complaints.date')}</th>
@@ -238,9 +242,22 @@ const ComplaintList = () => {
 
                                 return (
                                     <tr key={complaint.id} style={rowStyle}>
-                                        <td style={{ padding: '1rem', fontSize: '0.9rem', fontFamily: 'monospace' }}>
-                                            #{complaint.id.slice(0, 8)}
-                                            {priorityBadge}
+                                        <td style={{ padding: '1rem', textAlign: 'center' }}>
+                                            <button
+                                                onClick={() => {
+                                                    setSelectedReminderLogs(complaint.reminder_logs || []);
+                                                    setIsReminderModalOpen(true);
+                                                }}
+                                                style={{
+                                                    background: 'transparent', border: 'none', cursor: 'pointer',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                                                    color: reminderCount > 0 ? (reminderCount >= 4 ? '#ef4444' : '#eab308') : '#94a3b8'
+                                                }}
+                                                title="سجل التذكيرات"
+                                            >
+                                                <Bell size={18} fill={reminderCount > 0 ? "currentColor" : "none"} />
+                                                <span style={{ fontWeight: 'bold' }}>{reminderCount}</span>
+                                            </button>
                                         </td>
                                         <td style={{ padding: '1rem' }}>
                                             <div style={{ fontWeight: '600' }}>{complaint.customer_name}</div>
@@ -250,7 +267,7 @@ const ComplaintList = () => {
                                             {complaint.type?.name || t('forms.optional')}
                                         </td>
                                         <td style={{ padding: '1rem', color: '#94a3b8', fontSize: '0.9rem' }}>
-                                            {new Date(complaint.created_at).toLocaleDateString()}
+                                            {new Date(complaint.created_at).toLocaleDateString('ar-EG')}
                                         </td>
                                         <td style={{ padding: '1rem', textAlign: 'center' }}>
                                             <span style={{
@@ -340,7 +357,7 @@ const ComplaintList = () => {
                                     {getStatusLabel(selectedComplaint.status)}
                                 </h3>
                                 <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
-                                    {t('complaints.date')}: {new Date(selectedComplaint.created_at).toLocaleString()}
+                                    {t('complaints.date')}: {new Date(selectedComplaint.created_at).toLocaleString('ar-EG')}
                                 </p>
                             </div>
                         </div>
@@ -537,6 +554,48 @@ const ComplaintList = () => {
                     </Modal>
                 )
             }
+
+
+
+            {/* Reminder Logs Modal */}
+            {isReminderModalOpen && (
+                <Modal isOpen={true} onClose={() => setIsReminderModalOpen(false)} title="سجل التذكيرات">
+                    <div style={{ minWidth: '400px', maxHeight: '50vh', overflowY: 'auto' }}>
+                        {selectedReminderLogs.length === 0 ? (
+                            <div style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>
+                                لا توجد تذكيرات مسجلة لهذه الشكوى
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                {selectedReminderLogs.map((log, idx) => (
+                                    <div key={idx} style={{
+                                        padding: '0.8rem',
+                                        background: 'rgba(255, 255, 255, 0.05)',
+                                        borderRadius: '8px',
+                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <User size={16} color="#60a5fa" />
+                                            <span style={{ color: '#e2e8f0', fontWeight: '600' }}>{log.agent_name}</span>
+                                        </div>
+                                        <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>
+                                            {new Date(log.timestamp).toLocaleString('ar-EG')}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+                            <button
+                                onClick={() => setIsReminderModalOpen(false)}
+                                style={{ padding: '0.6rem 1.2rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#94a3b8', cursor: 'pointer' }}
+                            >
+                                {t('forms.close')}
+                            </button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
         </div >
     );
 };

@@ -283,13 +283,13 @@ const AdminDashboardPage = ({ user, onLogout }) => {
         setIsModalOpen(true);
     };
 
-    const handleSaveUser = async (e) => {
-        e.preventDefault();
+    const handleSaveUser = async (userData) => {
+        // e.preventDefault(); - UserForm handles preventDefault and passes form data directy
         try {
             if (modalMode === 'add') {
-                await DataManager.addUser(userForm);
+                await DataManager.addUser(userData);
             } else {
-                await DataManager.updateUser(selectedUser.id, userForm);
+                await DataManager.updateUser(selectedUser.id, userData);
             }
             setIsModalOpen(false);
             refreshData();
@@ -999,7 +999,7 @@ const AdminDashboardPage = ({ user, onLogout }) => {
                 title={modalMode === 'add' ? 'إضافة موظف جديد' : 'تعديل بيانات الموظف'}
             >
                 <UserForm
-                    form={userForm}
+                    initialData={userForm}
                     onChange={setUserForm}
                     onSubmit={handleSaveUser}
                     mode={modalMode}

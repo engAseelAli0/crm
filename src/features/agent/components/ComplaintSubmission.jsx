@@ -235,7 +235,7 @@ const ComplaintSubmission = ({ user }) => {
     }
 
     return (
-        <div style={{ maxWidth: '900px', margin: '0 auto', padding: '2rem' }}>
+        <div style={{ maxWidth: '100%', margin: '0 auto', padding: '2rem' }}>
             {/* Tabs */}
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem', gap: '1rem' }}>
                 <button
@@ -251,7 +251,7 @@ const ComplaintSubmission = ({ user }) => {
                         fontWeight: '600', transition: 'all 0.2s'
                     }}
                 >
-                    <FileText size={18} /> {t('sidebar.submitComplaint')}
+                    <FileText size={18} /> {t('رفع شكوى')}
                 </button>
                 <button
                     onClick={() => setActiveTab('history')}
@@ -266,7 +266,7 @@ const ComplaintSubmission = ({ user }) => {
                         fontWeight: '600', transition: 'all 0.2s'
                     }}
                 >
-                    <List size={18} /> {t('sidebar.history')}
+                    <List size={18} /> {t('سجل الشكاوى')}
                 </button>
             </div>
 
@@ -274,7 +274,7 @@ const ComplaintSubmission = ({ user }) => {
             {activeTab === 'new' && (
                 <div style={{ animation: 'fadeIn 0.3s ease-out' }}>
                     <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
-                        <h2 style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#e2e8f0', marginBottom: '0.5rem' }}>{t('sidebar.submitComplaint')}</h2>
+                        <h2 style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#e2e8f0', marginBottom: '0.5rem' }}>{t('رفع شكوى')}</h2>
                         <p style={{ color: '#94a3b8' }}>{t('complaints.newComplaintDesc')}</p>
                     </div>
 
@@ -455,7 +455,7 @@ const ComplaintSubmission = ({ user }) => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                         <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#e2e8f0' }}>{t('complaints.allComplaints')}</h2>
                         <button onClick={loadHistory} style={{ background: 'transparent', border: 'none', color: '#3b82f6', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <RotateCcw size={16} /> {t('common.refresh') || 'Refresh'}
+                            <RotateCcw size={16} /> {t('common.refresh')}
                         </button>
                     </div>
 
@@ -538,7 +538,7 @@ const ComplaintSubmission = ({ user }) => {
                                                 {complaint.type?.name || '-'}
                                             </td>
                                             <td style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem' }}>
-                                                {new Date(complaint.created_at).toLocaleDateString('en-US')}
+                                                {new Date(complaint.created_at).toLocaleDateString('ar-EG')}
                                             </td>
                                             <td style={{ padding: '1rem', textAlign: 'center' }}>
                                                 <span style={{
@@ -588,7 +588,7 @@ const ComplaintSubmission = ({ user }) => {
                                                         <button
                                                             onClick={async () => {
                                                                 try {
-                                                                    await ComplaintManager.incrementReminder(complaint.id);
+                                                                    await ComplaintManager.incrementReminder(complaint.id, user);
                                                                     toast.success('تم التذكير', 'تم إرسال تذكير للإدارة');
                                                                 } catch (err) {
                                                                     toast.error('خطأ', 'فشل إرسال التذكير');
@@ -606,14 +606,9 @@ const ComplaintSubmission = ({ user }) => {
                                                     )}
 
                                                     {/* Status Toggle (Resolved <-> Pending/Processing) */}
-                                                    {complaint.status === 'Resolved' ? (
-                                                        /* Re-open Button: Only show if agent themselves resolved it (implied by resolved_by check) 
-                                                           Note: We need 'resolved_by' column. Only show if it matches user.id OR if we strictly follow user rule "only if agent closed it". 
-                                                           Since column might be missing, we should handle gracefully. 
-                                                           For now, assuming resolved_by exists. If not, condition fails (undefined !== user.id). 
-                                                           Actually user said: "if admin closed it, do not show open button".
-                                                        */
-                                                        (complaint.resolved_by === user.id) && (
+                                                    {/* Status Toggle (Resolved <-> Pending/Processing) - Creator Only */}
+                                                    {complaint.agent_id === user.id && (
+                                                        complaint.status === 'Resolved' ? (
                                                             <button
                                                                 onClick={async () => {
                                                                     if (!window.confirm('هل تريد إعادة فتح الشكوى؟')) return;
@@ -632,27 +627,27 @@ const ComplaintSubmission = ({ user }) => {
                                                             >
                                                                 <RotateCcw size={16} />
                                                             </button>
+                                                        ) : (
+                                                            <button
+                                                                onClick={async () => {
+                                                                    if (!window.confirm('هل أنت متأكد من إغلاق الشكوى واعتبارها ناجحة؟')) return;
+                                                                    try {
+                                                                        // When Agent resolves, set resolved_by to their ID
+                                                                        await ComplaintManager.updateComplaint(complaint.id, { status: 'Resolved', resolved_by: user.id });
+                                                                        toast.success('تم', 'تم إغلاق الشكوى بنجاح');
+                                                                        loadHistory();
+                                                                    } catch (e) { toast.error('خطأ', 'فشل التحديث'); }
+                                                                }}
+                                                                style={{
+                                                                    padding: '6px', borderRadius: '4px',
+                                                                    background: 'rgba(16, 185, 129, 0.1)', border: 'none',
+                                                                    color: '#10b981', cursor: 'pointer'
+                                                                }}
+                                                                title="إغلاق (نجاح)"
+                                                            >
+                                                                <CheckCircle size={16} />
+                                                            </button>
                                                         )
-                                                    ) : (
-                                                        <button
-                                                            onClick={async () => {
-                                                                if (!window.confirm('هل أنت متأكد من إغلاق الشكوى واعتبارها ناجحة؟')) return;
-                                                                try {
-                                                                    // When Agent resolves, set resolved_by to their ID
-                                                                    await ComplaintManager.updateComplaint(complaint.id, { status: 'Resolved', resolved_by: user.id });
-                                                                    toast.success('تم', 'تم إغلاق الشكوى بنجاح');
-                                                                    loadHistory();
-                                                                } catch (e) { toast.error('خطأ', 'فشل التحديث'); }
-                                                            }}
-                                                            style={{
-                                                                padding: '6px', borderRadius: '4px',
-                                                                background: 'rgba(16, 185, 129, 0.1)', border: 'none',
-                                                                color: '#10b981', cursor: 'pointer'
-                                                            }}
-                                                            title="إغلاق (نجاح)"
-                                                        >
-                                                            <CheckCircle size={16} />
-                                                        </button>
                                                     )}
                                                 </div>
                                             </td>
@@ -694,7 +689,7 @@ const ComplaintSubmission = ({ user }) => {
                                     {getStatusLabel(selectedComplaint.status)}
                                 </h3>
                                 <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
-                                    تاريخ الرفع: {new Date(selectedComplaint.created_at).toLocaleString('en-US')}
+                                    {t('complaints.date')}: {new Date(selectedComplaint.created_at).toLocaleString('ar-EG')}
                                 </p>
                             </div>
                         </div>

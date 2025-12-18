@@ -169,11 +169,11 @@ export const ComplaintManager = {
      * Increment the reminder count for a complaint (Admin Notification)
      * @param {string} id 
      */
-    incrementReminder: async (id) => {
-        // 1. Fetch current count using select single
+    incrementReminder: async (id, user) => {
+        // 1. Fetch current data
         const { data: current, error: fetchError } = await supabase
             .from('complaints')
-            .select('reminder_count')
+            .select('reminder_count, reminder_logs')
             .eq('id', id)
             .single();
 
@@ -183,11 +183,22 @@ export const ComplaintManager = {
         }
 
         const newCount = (current?.reminder_count || 0) + 1;
+        const currentLogs = current?.reminder_logs || [];
 
-        // 2. Update to new count
+        // Add new log entry
+        const newLog = {
+            agent_name: user?.name || 'Unknown',
+            timestamp: new Date().toISOString()
+        };
+        const newLogs = [...currentLogs, newLog];
+
+        // 2. Update to new count and logs
         const { data, error } = await supabase
             .from('complaints')
-            .update({ reminder_count: newCount })
+            .update({
+                reminder_count: newCount,
+                reminder_logs: newLogs
+            })
             .eq('id', id)
             .select()
             .single();

@@ -36,9 +36,16 @@ const AgentDashboardPage = ({ user, onLogout }) => {
     // Permissions Logic
     const canHandleCalls = user.permissions?.includes(PERMISSIONS.HANDLE_CALLS);
     const canViewReports = user.permissions?.includes(PERMISSIONS.VIEW_REPORTS);
+    const canSubmitComplaints = user.permissions?.includes(PERMISSIONS.SUBMIT_COMPLAINTS);
     const hasCallPermission = !user.permissions || canHandleCalls;
 
-    const [activeTab, setActiveTab] = useState(hasCallPermission ? 'dashboard' : 'reports');
+    // Default tab logic: calls -> dashboard, reports -> reports, complaints -> complaints
+    const [activeTab, setActiveTab] = useState(() => {
+        if (hasCallPermission) return 'dashboard';
+        if (canViewReports) return 'reports';
+        if (canSubmitComplaints) return 'complaints';
+        return 'guide';
+    });
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
     // Sidebar Toggle
@@ -334,15 +341,18 @@ const AgentDashboardPage = ({ user, onLogout }) => {
                             <SidebarItem icon={LayoutDashboard} label={t('sidebar.dashboard')} active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} collapsed={sidebarCollapsed} />
                             <SidebarItem icon={PhoneCall} label={t('sidebar.calls')} active={activeTab === 'calls'} onClick={() => setActiveTab('calls')} collapsed={sidebarCollapsed} />
                             <SidebarItem icon={Users} label={t('sidebar.customers')} active={activeTab === 'customers'} onClick={() => setActiveTab('customers')} collapsed={sidebarCollapsed} />
-                            <SidebarItem
-                                icon={FileText}
-                                label={t('sidebar.complaintSubmission')}
-                                active={activeTab === 'complaints'}
-                                onClick={() => window.open(window.location.origin + '/agent/complaints', '_blank')}
-                                collapsed={sidebarCollapsed}
-                            />
                             <SidebarItem icon={BarChart3} label={t('sidebar.stats')} active={activeTab === 'stats'} onClick={() => setActiveTab('stats')} collapsed={sidebarCollapsed} />
                         </>
+                    )}
+
+                    {(hasCallPermission || canSubmitComplaints) && (
+                        <SidebarItem
+                            icon={FileText}
+                            label={t('sidebar.complaintSubmission')}
+                            active={activeTab === 'complaints'}
+                            onClick={() => setActiveTab('complaints')}
+                            collapsed={sidebarCollapsed}
+                        />
                     )}
 
                     {canViewReports && (

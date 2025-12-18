@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Lock, LogIn, Eye, EyeOff, Smartphone, Shield, Sparkles } from 'lucide-react';
+import { User, Lock, LogIn, Eye, EyeOff, Smartphone, Shield, Sparkles, AlertTriangle } from 'lucide-react';
 import { DataManager } from '../../../shared/utils/DataManager'; // Assuming DataManager will be moved later or path adjusted
 import styles from './LoginPage.module.css';
 
@@ -9,7 +9,7 @@ const LoginPage = ({ onLogin }) => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
-    const [activeDemo, setActiveDemo] = useState(null);
+    const [rememberMe, setRememberMe] = useState(false);
     const [particles, setParticles] = useState([]);
 
     // Particle effect
@@ -41,6 +41,15 @@ const LoginPage = ({ onLogin }) => {
         return () => clearInterval(interval);
     }, []);
 
+    // Check for saved username on mount
+    useEffect(() => {
+        const savedUsername = localStorage.getItem('remember_me_username');
+        if (savedUsername) {
+            setUsername(savedUsername);
+            setRememberMe(true);
+        }
+    }, []);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -60,6 +69,14 @@ const LoginPage = ({ onLogin }) => {
             if (user) {
                 // Visual success effect
                 document.querySelector(`.${styles.loginContainer}`).classList.add(styles.successAnimation);
+
+                // Handle Remember Me
+                if (rememberMe) {
+                    localStorage.setItem('remember_me_username', username);
+                } else {
+                    localStorage.removeItem('remember_me_username');
+                }
+
                 setTimeout(() => onLogin(user), 800);
             } else {
                 setError('اسم المستخدم أو كلمة المرور غير صحيحة');
@@ -80,33 +97,20 @@ const LoginPage = ({ onLogin }) => {
         setLoading(false);
     };
 
-    const handleDemoLogin = (type) => {
-        setActiveDemo(type);
-        if (type === 'admin') {
-            setUsername('admin');
-            setPassword('123');
-        } else {
-            setUsername('agent');
-            setPassword('123');
-        }
-
-        // Pulse effect
-        // NOTE: We need a unique selector or ref. For now using class logic similar to before but with module classes might be tricky if they are hashed.
-        // It's better to use state for animation classes or Refs.
-        // However, to keep it simple and close to original:
-        // We can add a temporarily id or just rely on state to render class?
-        // Actually, the button render logic uses `activeDemo` state. 
-        // Let's just rely on the active class for styling, and maybe add animation class via state if needed.
-        // The original used document.querySelector. I'll use refs if I were properly rewriting, but let's try to match behavior.
-    };
-
     const togglePasswordVisibility = () => {
         setShowPassword(!showPassword);
     };
 
     return (
         <div className={styles.loginContainer}>
-            {/* Particles */}
+            {/* Premium Nebula Background */}
+            <div className={styles.nebulaContainer}>
+                <div className={`${styles.orb} ${styles.orb1}`} />
+                <div className={`${styles.orb} ${styles.orb2}`} />
+                <div className={`${styles.orb} ${styles.orb3}`} />
+            </div>
+
+            {/* Particles (Overlay) */}
             <div className={styles.particlesContainer}>
                 {particles.map(p => (
                     <div key={p.id} className={styles.particle} style={{
@@ -114,12 +118,10 @@ const LoginPage = ({ onLogin }) => {
                         top: `${p.y}%`,
                         width: `${p.size}px`,
                         height: `${p.size}px`,
+                        opacity: Math.random() * 0.5
                     }} />
                 ))}
             </div>
-
-            {/* Radial Effect */}
-            <div className={styles.radialEffect} />
 
             <div className={styles.formWrapper}>
                 <div className={styles.loginForm}>
@@ -129,17 +131,16 @@ const LoginPage = ({ onLogin }) => {
                         {/* Header */}
                         <div className={styles.logoContainer}>
                             <div className={styles.logoIcon}>
-                                <Shield size={32} color="white" />
-                                <Sparkles size={16} color="rgba(255, 255, 255, 0.8)" className={styles.sparkle} />
+                                <Shield size={40} color="white" strokeWidth={1.5} />
                             </div>
                         </div>
 
                         <h1 className={styles.title}>
-                            نظام خدمة العملاء
+                            مرحباً بك مجدداً
                         </h1>
 
                         <p className={styles.subtitle}>
-                            منصة متكاملة لإدارة علاقات العملاء وتقديم الدعم الفني
+                            سجل دخولك للمتابعة إلى لوحة التحكم
                         </p>
 
                         {/* Login Form */}
@@ -153,35 +154,46 @@ const LoginPage = ({ onLogin }) => {
                                         className={styles.input}
                                         value={username}
                                         onChange={(e) => setUsername(e.target.value)}
+                                        dir="rtl"
                                     />
                                 </div>
-                            </div>
 
-                            <div style={{ marginBottom: '2rem' }}>
                                 <div className={styles.inputWrapper}>
                                     <Lock size={20} className={styles.inputIcon} />
                                     <input
                                         type={showPassword ? "text" : "password"}
                                         placeholder="كلمة المرور"
-                                        className={styles.input}
+                                        className={`${styles.input} ${styles.passwordInput}`}
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
-                                        style={{ paddingRight: '50px' }}
+                                        dir="rtl"
                                     />
                                     <button
                                         type="button"
                                         onClick={togglePasswordVisibility}
                                         className={styles.togglePassword}
                                     >
-                                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                     </button>
                                 </div>
                             </div>
 
+                            {/* Remember Me */}
+                            <label className={styles.checkboxContainer}>
+                                <input
+                                    type="checkbox"
+                                    checked={rememberMe}
+                                    onChange={(e) => setRememberMe(e.target.checked)}
+                                    className={styles.checkboxInput}
+                                />
+                                <span className={styles.checkboxCustom}></span>
+                                <span className={styles.checkboxLabel}>تذكرني</span>
+                            </label>
+
                             {error && (
                                 <div className={styles.errorMessage}>
-                                    <Shield size={16} style={{ marginLeft: '8px' }} />
-                                    {error}
+                                    <AlertTriangle size={18} />
+                                    <span>{error}</span>
                                 </div>
                             )}
 
@@ -194,69 +206,16 @@ const LoginPage = ({ onLogin }) => {
                                     <div className={styles.spinner} />
                                 ) : (
                                     <>
-                                        <LogIn size={20} style={{ marginLeft: '10px' }} />
-                                        تسجيل الدخول
+                                        <span>تسجيل الدخول</span>
+                                        <LogIn size={20} />
                                     </>
                                 )}
                             </button>
                         </form>
 
-                        {/* Divider */}
-                        <div className={styles.divider}>
-                            <div className={styles.dividerLine}></div>
-                            <div className={styles.dividerText}>حسابات تجريبية</div>
-                            <div className={styles.dividerLine}></div>
-                        </div>
-
-                        {/* Demo Accounts */}
-                        <div className={styles.demoButtons}>
-                            <button
-                                className={`${styles.demoBtn} ${activeDemo === 'admin' ? styles.demoBtnActive : ''} ${activeDemo === 'admin' ? styles.pulseAnimation : ''}`}
-                                onClick={() => handleDemoLogin('admin')}
-                            >
-                                <div style={{
-                                    width: '40px',
-                                    height: '40px',
-                                    borderRadius: '10px',
-                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    marginBottom: '10px'
-                                }}>
-                                    <User size={20} />
-                                </div>
-                                <div style={{ fontWeight: '600', marginBottom: '4px' }}>مدير النظام</div>
-                                <div style={{ fontSize: '0.85rem', opacity: '0.8' }}>admin / 123</div>
-                            </button>
-
-                            <button
-                                className={`${styles.demoBtn} ${activeDemo === 'agent' ? styles.demoBtnActive : ''} ${activeDemo === 'agent' ? styles.pulseAnimation : ''}`}
-                                onClick={() => handleDemoLogin('agent')}
-                            >
-                                <div style={{
-                                    width: '40px',
-                                    height: '40px',
-                                    borderRadius: '10px',
-                                    background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    marginBottom: '10px'
-                                }}>
-                                    <Smartphone size={20} />
-                                </div>
-                                <div style={{ fontWeight: '600', marginBottom: '4px' }}>موظف الدعم</div>
-                                <div style={{ fontSize: '0.85rem', opacity: '0.8' }}>agent / 123</div>
-                            </button>
-                        </div>
-
                         {/* Footer */}
                         <div className={styles.footer}>
-                            <p>جميع الحقوق محفوظة © {new Date().getFullYear()}</p>
-                            <p style={{ fontSize: '0.8rem', marginTop: '5px' }}>
-                                نظام آمن ومشفر لحماية بياناتك
-                            </p>
+                            <p>© {new Date().getFullYear()} نظام خدمة العملاء</p>
                         </div>
                     </div>
                 </div>

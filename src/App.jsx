@@ -56,7 +56,7 @@ function App() {
         </div>
       ) : ['ADMIN', 'SUPERVISOR', 'EVALUATOR'].includes(user.role) ? (
         <AdminDashboardPage user={user} onLogout={handleLogout} />
-      ) : user.role === 'AGENT' ? (
+      ) : ['AGENT', 'COMPLAINT_OFFICER'].includes(user.role) ? (
         <AgentDashboardPage user={user} onLogout={handleLogout} />
       ) : (
         <div>Unknown Role: {user.role}</div>

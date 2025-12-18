@@ -18,12 +18,18 @@ export const translations = {
             permissions: 'الصلاحيات',
             morning: 'صباح الخير',
             evening: 'مساء الخير',
+            refresh: 'تحديث',
+            role: 'الدور الوظيفي',
+            permissions: 'الصلاحيات',
+            morning: 'صباح الخير',
+            evening: 'مساء الخير',
         },
         roles: {
             admin: 'مدير النظام',
             agent: 'موظف خدمة العملاء',
             evaluator: 'موظف التقييم',
             supervisor: 'مشرف مركز التواصل',
+            complaint_officer: 'موظف شكاوى',
         },
         sidebar: {
             dashboard: 'لوحة القيادة',
@@ -119,12 +125,24 @@ export const translations = {
             deleteTypeConfirm: 'هل أنت متأكد من حذف هذا النوع؟ سيؤثر هذا على الشكاوى المرتبطة به.',
             typeName: 'اسم نوع الشكوى',
             typeNamePlaceholder: 'مثلاً: مشكلة إنترنت، شكوى مالية...',
+            loadError: 'فشل تحميل الشكاوى',
+            statusUpdateSuccess: 'تم تحديث الحالة بنجاح',
+            updateError: 'فشل تحديث الحالة',
+            loadTypesError: 'فشل تحميل أنواع الشكاوى',
+            saveError: 'حدث خطأ أثناء الحفظ',
+            deleteError: 'فشل الحذف',
+            createTypeSuccess: 'تم إنشاء النوع بنجاح',
+            updateTypeSuccess: 'تم تحديث النوع بنجاح',
+            deleteTypeSuccess: 'تم حذف النوع بنجاح',
+            suspensionDate: 'تاريخ التعليق',
+            submitError: 'فشل رفع الشكوى',
+            submitSuccess: 'تم رفع الشكوى بنجاح',
             fieldTypes: {
-                text: 'نص (Text)',
-                number: 'رقم (Number)',
-                textarea: 'نص طويل (Text Area)',
-                dropdown: 'قائمة منسدلة (Dropdown)',
-                date: 'تاريخ (Date)'
+                text: 'نص',
+                number: 'رقم',
+                textarea: 'نص طويل',
+                dropdown: 'قائمة منسدلة',
+                date: 'تاريخ'
             }
         },
         forms: {

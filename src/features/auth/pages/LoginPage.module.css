@@ -1,338 +1,455 @@
+/* Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+
 .loginContainer {
     min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
-    background: linear-gradient(135deg, #1e293b 0%, #3b82f6 30%, #60a5fa 100%);
-    /* Using fallback colors close to vars */
+    background: #0f172a;
     position: relative;
     overflow: hidden;
-    font-family: 'Segoe UI', 'Tahoma', 'Geneva', 'Verdana', sans-serif;
-    animation: fadeIn 0.8s ease-out;
+    font-family: 'Cairo', sans-serif;
+}
+
+/* Luxurious Nebula Background */
+.nebulaContainer {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    z-index: 0;
+    background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+}
+
+.orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    /* Soft luxurious glow */
+    animation: orbFloat 20s infinite ease-in-out alternate;
+    opacity: 0.6;
+}
+
+.orb1 {
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.4), transparent 70%);
+    /* Violet */
+    top: -10%;
+    left: -10%;
+    animation-duration: 25s;
+}
+
+.orb2 {
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(236, 72, 153, 0.4), transparent 70%);
+    /* Pink */
+    bottom: -10%;
+    right: -10%;
+    animation-duration: 28s;
+    animation-direction: alternate-reverse;
+}
+
+.orb3 {
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.4), transparent 70%);
+    /* Blue */
+    top: 40%;
+    left: 40%;
+    animation-duration: 30s;
+    animation-name: orbFloatCenter;
 }
 
 .particlesContainer {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* Glass Card */
+.formWrapper {
+    width: 100%;
+    max-width: 460px;
+    padding: 20px;
+    position: relative;
+    z-index: 10;
+}
+
+.loginForm {
+    background: rgba(30, 41, 59, 0.7);
+    /* Slightly more opaque for premium feel */
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow:
+        0 20px 50px -12px rgba(0, 0, 0, 0.7),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    border-radius: 28px;
+    padding: 3rem 2.5rem;
+    position: relative;
+    overflow: hidden;
+    animation: fadeScaleIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.content {
+    position: relative;
+    z-index: 2;
+}
+
+/* Header */
+.logoContainer {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 2rem;
+}
+
+.logoIcon {
+    width: 72px;
+    height: 72px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.3);
+    position: relative;
+    animation: floatLogo 6s ease-in-out infinite;
+}
+
+.title {
+    color: white;
+    font-size: 1.8rem;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 0.5rem;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.subtitle {
+    color: #94a3b8;
+    text-align: center;
+    font-size: 0.95rem;
+    margin-bottom: 2rem;
+    line-height: 1.5;
+}
+
+/* Inputs - FIXED ALIGNMENT */
+.inputGroup {
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+}
+
+.inputWrapper {
+    position: relative;
+    height: 56px;
+    /* Fixed height for consistency */
+}
+
+/* Icons container to insure vertical center */
+.inputIcon {
+    position: absolute;
+    top: 50%;
+    right: 16px;
+    /* RTL right padding */
+    transform: translateY(-50%);
+    color: #94a3b8;
+    pointer-events: none;
+    z-index: 2;
+    transition: color 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.inputWrapper:focus-within .inputIcon {
+    color: #60a5fa;
+    filter: drop-shadow(0 0 5px rgba(96, 165, 250, 0.5));
+}
+
+/* Specific padding for password field to account for toggle button */
+.passwordInput {
+    padding-left: 60px !important;
+    /* Ensure space for toggle button on the left */
+}
+
+.input {
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    padding: 0 52px 0 16px;
+    /* Base: Right padding for Icon, Normal left padding */
+    color: white;
+    font-size: 1rem;
+    font-family: inherit;
+    transition: all 0.3s ease;
+}
+
+.input:focus {
+    outline: none;
+    background: rgba(15, 23, 42, 0.7);
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15), 0 0 20px rgba(96, 165, 250, 0.2);
+}
+
+/* Password Toggle - Symmetrical to Input Icon */
+.togglePassword {
+    position: absolute;
+    top: 50%;
+    left: 12px;
+    /* Slightly more space from edge */
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    z-index: 3;
+}
+
+.togglePassword:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Checkbox */
+.checkboxContainer {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin-bottom: 2rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.checkboxInput {
+    display: none;
+}
+
+.checkboxCustom {
+    width: 22px;
+    height: 22px;
+    background: rgba(15, 23, 42, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    position: relative;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.checkboxInput:checked+.checkboxCustom {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+}
+
+.checkboxCustom::after {
+    content: '';
+    width: 6px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg) translateY(-1px);
+    display: none;
+}
+
+.checkboxInput:checked+.checkboxCustom::after {
+    display: block;
+}
+
+.checkboxLabel {
+    color: #cbd5e1;
+    font-size: 0.95rem;
+}
+
+/* Error */
+.errorMessage {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
+    padding: 12px 16px;
+    border-radius: 12px;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+    animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+/* Button */
+.submitBtn {
+    width: 100%;
+    height: 56px;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    border: none;
+    border-radius: 16px;
+    color: white;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 10px 20px -5px rgba(37, 99, 235, 0.5);
+    position: relative;
+    overflow: hidden;
+}
+
+.submitBtn::after {
+    content: '';
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: 1;
-}
-
-.particle {
-    position: absolute;
-    background-color: rgba(255, 255, 255, 0.2);
-    border-radius: 50%;
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
-}
-
-.radialEffect {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 600px;
-    height: 600px;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 70%);
-    border-radius: 50%;
-    z-index: 1;
-}
-
-.formWrapper {
-    position: relative;
-    z-index: 2;
-    width: 100%;
-    max-width: 440px;
-    padding: 0 20px;
-}
-
-.loginForm {
-    background: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(15px);
-    -webkit-backdrop-filter: blur(15px);
-    border-radius: 24px;
-    padding: 3rem 2.5rem;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    text-align: center;
-    position: relative;
-    overflow: hidden;
-}
-
-.decorativeBg {
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0) 60%);
-    z-index: 0;
-}
-
-.content {
-    position: relative;
-    z-index: 1;
-}
-
-.logoContainer {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin-bottom: 1.5rem;
-}
-
-.logoIcon {
-    width: 70px;
-    height: 70px;
-    border-radius: 20px;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary, #60a5fa) 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-    position: relative;
-}
-
-.sparkle {
-    position: absolute;
-    top: -5px;
-    right: -5px;
-}
-
-.title {
-    margin-bottom: 0.5rem;
-    font-size: 2.2rem;
-    font-weight: 700;
-    background: linear-gradient(to right, #fff, rgba(255, 255, 255, 0.8));
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    letter-spacing: -0.5px;
-}
-
-.subtitle {
-    color: rgba(255, 255, 255, 0.7);
-    margin-bottom: 2.5rem;
-    font-size: 1rem;
-    line-height: 1.5;
-}
-
-.inputGroup {
-    margin-bottom: 1.5rem;
-}
-
-.inputWrapper {
-    position: relative;
-}
-
-.inputIcon {
-    position: absolute;
-    top: 15px;
-    left: 16px;
-    color: rgba(255, 255, 255, 0.6);
-    z-index: 2;
-}
-
-.input {
-    padding-left: 50px;
-    background: rgba(255, 255, 255, 0.07);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: white;
-    font-size: 1rem;
-    height: 52px;
-    border-radius: 14px;
-    width: 100%;
-    box-sizing: border-box;
-    transition: all 0.3s ease;
-}
-
-.input:focus {
-    background: rgba(255, 255, 255, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    outline: none;
-}
-
-.togglePassword {
-    position: absolute;
-    top: 14px;
-    right: 16px;
-    background: transparent;
-    border: none;
-    color: rgba(255, 255, 255, 0.6);
-    cursor: pointer;
-    padding: 5px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-}
-
-.togglePassword:hover {
-    color: rgba(255, 255, 255, 0.9);
-}
-
-.errorMessage {
-    color: #ff6b6b;
-    margin-bottom: 1.5rem;
-    padding: 12px 16px;
-    background: rgba(255, 107, 107, 0.1);
-    border-radius: 12px;
-    border: 1px solid rgba(255, 107, 107, 0.2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.9rem;
-}
-
-.submitBtn {
-    width: 100%;
-    justify-content: center;
-    height: 56px;
-    border-radius: 14px;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
-    border: none;
-    color: white;
-    font-size: 1.05rem;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    background: linear-gradient(rgba(255, 255, 255, 0.2), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
 }
 
 .submitBtn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 20px 30px -10px rgba(37, 99, 235, 0.6);
 }
 
-.spinner {
-    width: 22px;
-    height: 22px;
-    border: 3px solid rgba(255, 255, 255, 0.3);
-    border-top: 3px solid white;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
+.submitBtn:hover::after {
+    opacity: 1;
 }
 
-.divider {
-    display: flex;
-    align-items: center;
-    margin: 2.5rem 0;
-    color: rgba(255, 255, 255, 0.4);
+.submitBtn:active {
+    transform: translateY(0);
 }
 
-.dividerLine {
-    flex: 1;
-    height: 1px;
-    background: rgba(255, 255, 255, 0.1);
+.submitBtn:disabled {
+    opacity: 0.7;
+    cursor: wait;
 }
 
-.dividerText {
-    padding: 0 15px;
-    font-size: 0.9rem;
-}
-
-.demoButtons {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-    margin-bottom: 1.5rem;
-}
-
-.demoBtn {
-    padding: 16px;
-    background: rgba(255, 255, 255, 0.07);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 14px;
-    color: white;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.demoBtnActive {
-    background: rgba(255, 255, 255, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.demoBtn:hover:not(.demoBtnActive) {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
+/* Footer */
 .footer {
-    margin-top: 2rem;
+    text-align: center;
+    color: #64748b;
     font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.5);
-    line-height: 1.6;
+    margin-top: 2rem;
 }
 
 /* Animations */
-@keyframes spin {
+@keyframes orbFloat {
     0% {
-        transform: rotate(0deg);
+        transform: translate(0, 0) scale(1);
+    }
+
+    33% {
+        transform: translate(30px, -50px) scale(1.1);
+    }
+
+    66% {
+        transform: translate(-20px, 20px) scale(0.9);
     }
 
     100% {
-        transform: rotate(360deg);
+        transform: translate(0, 0) scale(1);
     }
 }
 
-@keyframes fadeIn {
+@keyframes orbFloatCenter {
     0% {
-        opacity: 0;
-        transform: translateY(20px);
+        transform: translate(0, 0) scale(1);
+    }
+
+    50% {
+        transform: translate(-50px, -50px) scale(1.2);
     }
 
     100% {
+        transform: translate(50px, 50px) scale(1);
+    }
+}
+
+@keyframes fadeScaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(20px);
+    }
+
+    to {
         opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+@keyframes floatLogo {
+
+    0%,
+    100% {
         transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-10px);
     }
 }
 
 @keyframes shake {
 
-    0%,
-    100% {
-        transform: translateX(0);
-    }
-
     10%,
-    30%,
-    50%,
-    70%,
     90% {
-        transform: translateX(-5px);
+        transform: translate3d(-1px, 0, 0);
     }
 
     20%,
-    40%,
-    60%,
     80% {
-        transform: translateX(5px);
+        transform: translate3d(2px, 0, 0);
+    }
+
+    30%,
+    50%,
+    70% {
+        transform: translate3d(-4px, 0, 0);
+    }
+
+    40%,
+    60% {
+        transform: translate3d(4px, 0, 0);
     }
 }
 
-@keyframes pulse {
-    0% {
-        transform: scale(1);
-    }
+.spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin 0.8s linear infinite;
+}
 
-    50% {
-        transform: scale(1.05);
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
     }
+}
 
-    100% {
-        transform: scale(1);
-    }
+.successAnimation {
+    animation: success 0.8s ease;
 }
 
 @keyframes success {
@@ -342,22 +459,10 @@
 
     50% {
         transform: scale(1.02);
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 0 0 2px rgba(72, 187, 120, 0.5);
+        box-shadow: 0 0 30px rgba(59, 130, 246, 0.5);
     }
 
     100% {
         transform: scale(1);
     }
-}
-
-.shakeAnimation {
-    animation: shake 0.5s ease-in-out;
-}
-
-.pulseAnimation {
-    animation: pulse 1s ease;
-}
-
-.successAnimation {
-    animation: success 0.8s ease;
 }

@@ -4,7 +4,9 @@ export const PERMISSIONS = {
     MANAGE_USERS: 'MANAGE_USERS',
     DELETE_CALL_LOGS: 'DELETE_CALL_LOGS',
     HANDLE_CALLS: 'HANDLE_CALLS',
-    MANAGE_COMPLAINTS: 'MANAGE_COMPLAINTS'
+    HANDLE_CALLS: 'HANDLE_CALLS',
+    MANAGE_COMPLAINTS: 'MANAGE_COMPLAINTS',
+    SUBMIT_COMPLAINTS: 'SUBMIT_COMPLAINTS'
 };
 
 export const PERMISSION_LABELS = {
@@ -13,7 +15,9 @@ export const PERMISSION_LABELS = {
     [PERMISSIONS.MANAGE_USERS]: 'إدارة الموظفين',
     [PERMISSIONS.DELETE_CALL_LOGS]: 'حذف سجلات المكالمات',
     [PERMISSIONS.HANDLE_CALLS]: 'استقبال وإجراء المكالمات',
-    [PERMISSIONS.MANAGE_COMPLAINTS]: 'إدارة الشكاوى الواردة'
+    [PERMISSIONS.HANDLE_CALLS]: 'استقبال وإجراء المكالمات',
+    [PERMISSIONS.MANAGE_COMPLAINTS]: 'إدارة الشكاوى الواردة',
+    [PERMISSIONS.SUBMIT_COMPLAINTS]: 'رفع الشكاوى'
 };
 
 export const ROLES = {
@@ -36,6 +40,10 @@ export const ROLES = {
     SUPERVISOR: {
         label: 'مشرف مركز التواصل',
         permissions: [PERMISSIONS.VIEW_REPORTS, PERMISSIONS.MANAGE_COMPLAINTS]
+    },
+    COMPLAINT_OFFICER: {
+        label: 'موظف شكاوى',
+        permissions: [PERMISSIONS.SUBMIT_COMPLAINTS]
     }
 };
 
