@@ -13,6 +13,9 @@ const KnowledgeBaseView = ({ onClose }) => {
     const [isHovering, setIsHovering] = useState(false);
     const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
 
+    // Low-level Search State
+    const [innerSearchTerm, setInnerSearchTerm] = useState('');
+
     const handleMouseMove = (e) => {
         const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
         const x = ((e.clientX - left) / width) * 100;
@@ -31,8 +34,24 @@ const KnowledgeBaseView = ({ onClose }) => {
         setIsLoading(false);
     };
 
-    // ... (rest of search/filter logic remains the same, I will use Replace Block effectively)
+    // Highlight Helper
+    const highlightText = (text, highlight) => {
+        if (!highlight.trim()) {
+            return text;
+        }
+        const regex = new RegExp(`(${highlight})`, 'gi');
+        const parts = text.split(regex);
+        return parts.map((part, i) =>
+            regex.test(part) ? <mark key={i} style={{ backgroundColor: '#fde047', color: 'black', borderRadius: '4px', padding: '0 2px' }}>{part}</mark> : part
+        );
+    };
 
+    // Reset inner search when item changes
+    useEffect(() => {
+        if (selectedItem) {
+            setInnerSearchTerm('');
+        }
+    }, [selectedItem]);
 
     const filteredItems = items.filter(item =>
         item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -353,13 +372,30 @@ const KnowledgeBaseView = ({ onClose }) => {
                             <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1.5rem', color: 'white', lineHeight: '1.3' }}> {/* Reduced title size */}
                                 {selectedItem.title}
                             </h1>
+
+                            {/* Inner Search */}
+                            <div style={{ marginBottom: '1rem', position: 'relative' }}>
+                                <input
+                                    type="text"
+                                    placeholder="بحث داخل المقال..."
+                                    value={innerSearchTerm}
+                                    onChange={(e) => setInnerSearchTerm(e.target.value)}
+                                    style={{
+                                        width: '100%', padding: '0.75rem 2.5rem 0.75rem 1rem',
+                                        borderRadius: '12px', border: '1px solid rgba(148, 163, 184, 0.2)',
+                                        background: 'rgba(15, 23, 42, 0.5)', color: 'white'
+                                    }}
+                                />
+                                <Search size={18} color="#94a3b8" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                            </div>
+
                             <div style={{
                                 color: '#e2e8f0',
                                 lineHeight: '1.7',
                                 fontSize: '1rem', // Reduced font size
                                 whiteSpace: 'pre-wrap'
                             }}>
-                                {selectedItem.content}
+                                {highlightText(selectedItem.content, innerSearchTerm)}
                             </div>
                         </div>
                     </div>

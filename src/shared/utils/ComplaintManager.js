@@ -84,7 +84,8 @@ export const ComplaintManager = {
             .select(`
         *,
         type:complaint_types (name, fields),
-        agent:users!agent_id (name)
+        agent:users!agent_id (name),
+        resolver:users!resolved_by (name)
       `)
             .order('created_at', { ascending: false });
 
@@ -92,7 +93,35 @@ export const ComplaintManager = {
             console.error('Error fetching complaints:', error);
             return [];
         }
+        console.log('ComplaintManager: Fetched complaints:', data);
+        if (data && data.length > 0) {
+            console.log('Sample Resolver:', data[0].resolver);
+            console.log('Sample ResolvedBy UUID:', data[0].resolved_by);
+        }
         return data || [];
+    },
+
+    /**
+     * Fetch a single complaint by ID with all relations
+     * @param {string} id
+     */
+    getComplaintById: async (id) => {
+        const { data, error } = await supabase
+            .from('complaints')
+            .select(`
+        *,
+        type:complaint_types (name, fields),
+        agent:users!agent_id (name),
+        resolver:users!resolved_by (name)
+      `)
+            .eq('id', id)
+            .single();
+
+        if (error) {
+            console.error('Error fetching complaint by ID:', error);
+            return null;
+        }
+        return data;
     },
 
     /**
@@ -105,7 +134,8 @@ export const ComplaintManager = {
             .select(`
         *,
         type:complaint_types (name, fields),
-        agent:users!agent_id (name)
+        agent:users!agent_id (name),
+        resolver:users!resolved_by (name)
       `)
             .eq('agent_id', agentId)
             .order('created_at', { ascending: false });

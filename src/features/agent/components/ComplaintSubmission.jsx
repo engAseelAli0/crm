@@ -32,6 +32,11 @@ const ComplaintSubmission = ({ user }) => {
     const [selectedComplaint, setSelectedComplaint] = useState(null);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
+    // Closure Modal
+    const [isClosureModalOpen, setIsClosureModalOpen] = useState(false);
+    const [closingComplaint, setClosingComplaint] = useState(null);
+    const [closureReason, setClosureReason] = useState('');
+
     useEffect(() => {
         loadTypes();
         if (activeTab === 'history') {
@@ -204,6 +209,28 @@ const ComplaintSubmission = ({ user }) => {
             case 'Resolved': return '#10b981';
             default: return '#94a3b8';
         }
+    };
+
+    // Helper to calculate duration
+    const calculateDuration = (start, end) => {
+        if (!start || !end) return '-';
+        const startTime = new Date(start);
+        const endTime = new Date(end);
+        const diffMs = endTime - startTime;
+
+        if (diffMs < 0) return '-';
+        if (diffMs < 60000) return 'أقل من دقيقة';
+
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        const diffHrs = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+        let parts = [];
+        if (diffDays > 0) parts.push(`${diffDays} يوم`);
+        if (diffHrs > 0) parts.push(`${diffHrs} ساعة`);
+        if (diffMins > 0) parts.push(`${diffMins} دقيقة`);
+
+        return parts.join(' و ');
     };
 
     // Find the currently selected type object
@@ -513,15 +540,17 @@ const ComplaintSubmission = ({ user }) => {
                                     <th style={{ padding: '1rem', textAlign: 'right', color: '#94a3b8' }}>{t('complaints.customerPhone')}</th>
                                     <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8' }}>{t('complaints.raisedBy')}</th>
                                     <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8' }}>{t('complaints.type')}</th>
-                                    <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8' }}>{t('complaints.date')}</th>
+                                    <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8' }}>تاريخ الرفع</th>
+                                    <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8' }}>تاريخ الإغلاق</th>
+                                    <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8' }}>المدة</th>
                                     <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8' }}>{t('complaints.actions')}</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {isLoadingHistory ? (
-                                    <tr><td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>{t('common.loading')}</td></tr>
+                                    <tr><td colSpan="8" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>{t('common.loading')}</td></tr>
                                 ) : filteredComplaints.length === 0 ? (
-                                    <tr><td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>{t('complaints.noComplaintsFound')}</td></tr>
+                                    <tr><td colSpan="8" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>{t('complaints.noComplaintsFound')}</td></tr>
                                 ) : (
                                     filteredComplaints.map(complaint => (
                                         <tr key={complaint.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
@@ -537,8 +566,24 @@ const ComplaintSubmission = ({ user }) => {
                                             <td style={{ padding: '1rem', textAlign: 'center', color: '#cbd5e1' }}>
                                                 {complaint.type?.name || '-'}
                                             </td>
-                                            <td style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem' }}>
-                                                {new Date(complaint.created_at).toLocaleDateString('ar-EG')}
+                                            <td style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem', direction: 'ltr' }}>
+                                                {new Date(complaint.created_at).toLocaleDateString('en-GB')}
+                                                <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>
+                                                    {new Date(complaint.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                                </div>
+                                            </td>
+                                            <td style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem', direction: 'ltr' }}>
+                                                {complaint.resolved_at ? (
+                                                    <>
+                                                        {new Date(complaint.resolved_at).toLocaleDateString('en-GB')}
+                                                        <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>
+                                                            {new Date(complaint.resolved_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                                        </div>
+                                                    </>
+                                                ) : '-'}
+                                            </td>
+                                            <td style={{ padding: '1rem', textAlign: 'center', color: '#fbbf24', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                                                {calculateDuration(complaint.created_at, complaint.resolved_at)}
                                             </td>
                                             <td style={{ padding: '1rem', textAlign: 'center' }}>
                                                 <span style={{
@@ -629,14 +674,10 @@ const ComplaintSubmission = ({ user }) => {
                                                             </button>
                                                         ) : (
                                                             <button
-                                                                onClick={async () => {
-                                                                    if (!window.confirm('هل أنت متأكد من إغلاق الشكوى واعتبارها ناجحة؟')) return;
-                                                                    try {
-                                                                        // When Agent resolves, set resolved_by to their ID
-                                                                        await ComplaintManager.updateComplaint(complaint.id, { status: 'Resolved', resolved_by: user.id });
-                                                                        toast.success('تم', 'تم إغلاق الشكوى بنجاح');
-                                                                        loadHistory();
-                                                                    } catch (e) { toast.error('خطأ', 'فشل التحديث'); }
+                                                                onClick={() => {
+                                                                    setClosingComplaint(complaint);
+                                                                    setClosureReason('');
+                                                                    setIsClosureModalOpen(true);
                                                                 }}
                                                                 style={{
                                                                     padding: '6px', borderRadius: '4px',
@@ -693,6 +734,17 @@ const ComplaintSubmission = ({ user }) => {
                                 </p>
                             </div>
                         </div>
+
+                        {selectedComplaint.status === 'Resolved' && (
+                            <div style={{ marginBottom: '2rem', padding: '1rem', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '8px', color: '#10b981' }}>
+                                <div style={{ marginBottom: '0.5rem' }}>
+                                    <strong>{t('complaints.closedBy')}:</strong> {selectedComplaint.resolver?.name || 'Unknown'}
+                                </div>
+                                <div>
+                                    <strong>{t('complaints.closureReason')}:</strong> {selectedComplaint.closure_reason || '-'}
+                                </div>
+                            </div>
+                        )}
 
                         {selectedComplaint.status === 'Suspended' && (
                             <div style={{ marginBottom: '2rem', padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', color: '#fca5a5' }}>
@@ -768,6 +820,68 @@ const ComplaintSubmission = ({ user }) => {
                                 style={{ padding: '0.6rem 1.5rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#cbd5e1', cursor: 'pointer' }}
                             >
                                 {t('forms.close')}
+                            </button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
+
+            {/* Closure Modal */}
+            {isClosureModalOpen && closingComplaint && (
+                <Modal isOpen={true} onClose={() => setIsClosureModalOpen(false)} title={t('complaints.closeConfirm')} size="md">
+                    <div style={{ padding: '1.5rem' }}>
+                        <p style={{ color: '#cbd5e1', marginBottom: '1rem' }}>{t('complaints.closureReasonPlaceholder')}</p>
+                        <textarea
+                            value={closureReason}
+                            onChange={(e) => setClosureReason(e.target.value)}
+                            placeholder={t('complaints.closureReason')}
+                            style={{
+                                width: '100%', padding: '0.8rem', minHeight: '100px',
+                                background: 'rgba(15, 23, 42, 0.6)',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                borderRadius: '8px', color: 'white', marginBottom: '1.5rem'
+                            }}
+                        />
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+                            <button
+                                onClick={() => setIsClosureModalOpen(false)}
+                                style={{
+                                    padding: '0.6rem 1.2rem', background: 'transparent',
+                                    border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px',
+                                    color: '#94a3b8', cursor: 'pointer'
+                                }}
+                            >
+                                {t('common.cancel')}
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    if (!closureReason.trim()) {
+                                        toast.error(t('common.error'), t('complaints.fillRequired'));
+                                        return;
+                                    }
+                                    try {
+                                        console.log('ComplaintSubmission: Closing complaint', closingComplaint.id, 'with user', user?.id);
+                                        await ComplaintManager.updateComplaint(closingComplaint.id, {
+                                            status: 'Resolved',
+                                            resolved_by: user.id,
+                                            closure_reason: closureReason,
+                                            resolved_at: new Date().toISOString()
+                                        });
+                                        toast.success(t('common.success'), t('complaints.statusUpdateSuccess'));
+                                        setIsClosureModalOpen(false);
+                                        loadHistory();
+                                    } catch (err) {
+                                        console.error(err);
+                                        toast.error(t('common.error'), t('complaints.updateError'));
+                                    }
+                                }}
+                                style={{
+                                    padding: '0.6rem 1.2rem', background: '#10b981',
+                                    border: 'none', borderRadius: '6px',
+                                    color: 'white', cursor: 'pointer', fontWeight: 'bold'
+                                }}
+                            >
+                                {t('complaints.closeConfirm')}
                             </button>
                         </div>
                     </div>

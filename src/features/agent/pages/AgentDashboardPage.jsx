@@ -21,6 +21,7 @@ import CallHistoryList from '../components/CallHistoryList';
 import CallDetailsModal from '../../admin/components/CallDetailsModal';
 import ComplaintSubmission from '../components/ComplaintSubmission';
 import KnowledgeBaseView from '../components/KnowledgeBaseView';
+import ReminderView from '../components/ReminderView';
 import { BookOpen } from 'lucide-react';
 
 import ReportsView from '../../admin/components/ReportsView';
@@ -88,7 +89,89 @@ const AgentDashboardPage = ({ user, onLogout }) => {
 
     const [incomingCall, setIncomingCall] = useState(null);
     const [stats, setStats] = useState({ totalCalls: 0, todayCalls: 0, resolutionRate: '0%', avgDuration: '0:00' });
+
     const [viewCallDetails, setViewCallDetails] = useState(null);
+
+    // Reminder State
+    const [pendingReminders, setPendingReminders] = useState([]);
+    const [expiredReminders, setExpiredReminders] = useState([]);
+    const [showNotifications, setShowNotifications] = useState(false);
+    const [notifiedIds, setNotifiedIds] = useState(new Set());
+
+    // Request Notification Permission
+    useEffect(() => {
+        if ("Notification" in window) {
+            Notification.requestPermission();
+        }
+    }, []);
+
+    // 1. Poll database for ALL pending reminders (sync with server)
+    const syncReminders = async () => {
+        // Get both pending and already expired but unread
+        const pending = await DataManager.getReminders(user.id, 'pending');
+        setPendingReminders(pending);
+    };
+
+    useEffect(() => {
+        syncReminders();
+        const interval = setInterval(syncReminders, 30000); // Sync every 30s
+        return () => clearInterval(interval);
+    }, [user.id]);
+
+    // 2. Client-side Real-Time Monitor (Every Second)
+    useEffect(() => {
+        const monitorExpiry = () => {
+            const now = new Date();
+            const nowExpired = [];
+            const stillPending = [];
+
+            pendingReminders.forEach(rem => {
+                const expiryDate = new Date(rem.expires_at);
+                if (expiryDate <= now) {
+                    nowExpired.push(rem);
+                } else {
+                    stillPending.push(rem);
+                }
+            });
+
+            if (nowExpired.length > 0) {
+                // Update local lists
+                setExpiredReminders(prev => {
+                    // Combine and avoid duplicates
+                    const combined = [...prev, ...nowExpired];
+                    return Array.from(new Map(combined.map(item => [item.id, item])).values());
+                });
+
+                setPendingReminders(stillPending);
+
+                // Trigger Browser Notifications
+                if ("Notification" in window && Notification.permission === "granted") {
+                    nowExpired.forEach(rem => {
+                        if (!notifiedIds.has(rem.id)) {
+                            new Notification("🔔 انتهى وقت الحظر", {
+                                body: `انتهت مدة حظر الرقم ${rem.phone_number}. السبب: ${rem.reason}`,
+                                icon: '/favicon.ico'
+                            });
+                            setNotifiedIds(prev => new Set(prev).add(rem.id));
+                        }
+                    });
+                }
+            }
+        };
+
+        const timer = setInterval(monitorExpiry, 1000);
+        return () => clearInterval(timer);
+    }, [pendingReminders, notifiedIds]);
+
+    const handleMarkReminderRead = async (id) => {
+        await DataManager.markReminderRead(id);
+        setExpiredReminders(prev => prev.filter(r => r.id !== id));
+        setNotifiedIds(prev => {
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+        });
+    };
 
     // UI State
 
@@ -369,6 +452,13 @@ const AgentDashboardPage = ({ user, onLogout }) => {
                         onClick={() => setActiveTab('guide')}
                         collapsed={sidebarCollapsed}
                     />
+                    <SidebarItem
+                        icon={Clock}
+                        label="ذكرني"
+                        active={activeTab === 'reminders'}
+                        onClick={() => setActiveTab('reminders')}
+                        collapsed={sidebarCollapsed}
+                    />
                 </div>
 
                 {!sidebarCollapsed && hasCallPermission && (
@@ -426,7 +516,145 @@ const AgentDashboardPage = ({ user, onLogout }) => {
                         <ThemeToggle />
 
                         <button className={styles.iconBtn}><HelpCircle size={20} color="#94a3b8" /></button>
-                        <button className={styles.iconBtn}><Bell size={20} color="#94a3b8" /></button>
+
+                        {/* Notification Bell */}
+                        <div style={{ position: 'relative' }}>
+                            <button
+                                className={styles.iconBtn}
+                                onClick={() => setShowNotifications(!showNotifications)}
+                            >
+                                <Bell size={20} color={expiredReminders.length > 0 ? "#ef4444" : "#94a3b8"} />
+                                {expiredReminders.length > 0 && (
+                                    <span style={{
+                                        position: 'absolute', top: -2, right: -2,
+                                        width: '10px', height: '10px',
+                                        background: '#ef4444', borderRadius: '50%',
+                                        border: '2px solid #0f172a'
+                                    }} />
+                                )}
+                            </button>
+
+                            {/* Dropdown */}
+                            {showNotifications && (
+                                <div style={{
+                                    position: 'absolute', top: '140%', left: 0,
+                                    width: '350px',
+                                    background: 'rgba(30, 41, 59, 0.7)',
+                                    backdropFilter: 'blur(16px)',
+                                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                                    borderRadius: '24px',
+                                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                                    zIndex: 1000,
+                                    overflow: 'hidden',
+                                    animation: 'slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+                                }}>
+                                    <div style={{
+                                        padding: '1.25rem',
+                                        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        background: 'rgba(15, 23, 42, 0.3)'
+                                    }}>
+                                        <span style={{ fontWeight: '800', color: '#f8fafc', fontSize: '1.1rem' }}>الإشعارات</span>
+                                        {expiredReminders.length > 0 && (
+                                            <span style={{
+                                                background: '#ef4444', color: 'white',
+                                                padding: '2px 8px', borderRadius: '12px',
+                                                fontSize: '0.75rem', fontWeight: 'bold'
+                                            }}>
+                                                {expiredReminders.length} جديد
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="custom-scrollbar" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                                        {expiredReminders.length === 0 ? (
+                                            <div style={{ padding: '3rem 1.5rem', textAlign: 'center' }}>
+                                                <div style={{
+                                                    width: '64px', height: '64px', background: 'rgba(148, 163, 184, 0.1)',
+                                                    borderRadius: '50%', display: 'flex', alignItems: 'center',
+                                                    justifyContent: 'center', margin: '0 auto 1rem'
+                                                }}>
+                                                    <Bell size={32} color="#64748b" style={{ opacity: 0.5 }} />
+                                                </div>
+                                                <p style={{ color: '#64748b', fontSize: '0.95rem' }}>لا توجد إشعارات حالياً</p>
+                                            </div>
+                                        ) : (
+                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                {expiredReminders.map(rem => (
+                                                    <div key={rem.id} style={{
+                                                        padding: '1.25rem',
+                                                        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                                                        background: 'rgba(239, 68, 68, 0.03)',
+                                                        transition: 'background 0.2s',
+                                                        cursor: 'default',
+                                                        position: 'relative',
+                                                        display: 'flex',
+                                                        gap: '12px'
+                                                    }}>
+                                                        <div style={{
+                                                            width: '40px', height: '40px', background: 'rgba(239, 68, 68, 0.1)',
+                                                            borderRadius: '12px', display: 'flex', alignItems: 'center',
+                                                            justifyContent: 'center', flexShrink: 0
+                                                        }}>
+                                                            <Clock size={20} color="#ef4444" />
+                                                        </div>
+                                                        <div style={{ flex: 1 }}>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                                                                <span style={{ color: '#ef4444', fontWeight: 'bold', fontSize: '0.9rem' }}>انتهى وقت الحظر</span>
+                                                                <span style={{ color: '#64748b', fontSize: '0.75rem' }}>
+                                                                    {new Date(rem.expires_at).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
+                                                                </span>
+                                                            </div>
+                                                            <div style={{ color: '#e2e8f0', marginBottom: '0.75rem', fontSize: '0.95rem', lineHeight: '1.4' }}>
+                                                                انتهى حظر الرقم <span style={{ fontFamily: 'monospace', color: '#60a5fa' }}>{rem.phone_number}</span>
+                                                                <div style={{ color: '#94a3b8', fontSize: '0.85rem', marginTop: '4px', fontStyle: 'italic' }}>
+                                                                    السبب: {rem.reason}
+                                                                </div>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => handleMarkReminderRead(rem.id)}
+                                                                style={{
+                                                                    width: '100%',
+                                                                    padding: '8px',
+                                                                    borderRadius: '10px',
+                                                                    border: '1px solid rgba(148, 163, 184, 0.2)',
+                                                                    background: 'rgba(148, 163, 184, 0.05)',
+                                                                    color: '#cbd5e1',
+                                                                    cursor: 'pointer',
+                                                                    fontSize: '0.85rem',
+                                                                    fontWeight: 'bold',
+                                                                    transition: 'all 0.2s'
+                                                                }}
+                                                                onMouseOver={(e) => {
+                                                                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                                                                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                                                                }}
+                                                                onMouseOut={(e) => {
+                                                                    e.currentTarget.style.background = 'rgba(148, 163, 184, 0.05)';
+                                                                    e.currentTarget.style.borderColor = 'rgba(148, 163, 184, 0.2)';
+                                                                }}
+                                                            >
+                                                                تمت المراجعة
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                    {expiredReminders.length > 0 && (
+                                        <div style={{
+                                            padding: '0.75rem', background: 'rgba(15, 23, 42, 0.4)',
+                                            textAlign: 'center', fontSize: '0.8rem', color: '#64748b'
+                                        }}>
+                                            سيتم حذف الإشعارات المقروءة تلقائياً
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
                         <button className={styles.iconBtn}><Settings size={20} color="#94a3b8" /></button>
                     </div>
                 </header>
@@ -487,6 +715,8 @@ const AgentDashboardPage = ({ user, onLogout }) => {
                             <ComplaintSubmission user={user} />
                         ) : activeTab === 'guide' ? (
                             <KnowledgeBaseView onClose={() => setActiveTab('dashboard')} />
+                        ) : activeTab === 'reminders' ? (
+                            <ReminderView user={user} onReminderAdded={syncReminders} />
                         ) : (
                             <div style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
                                 قريباً...

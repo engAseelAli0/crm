@@ -1,19 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import {
     Search, Filter, CheckCircle, XCircle, Clock,
-    AlertTriangle, MoreVertical, Eye, FileText, PauseCircle, PlayCircle, User, Hash, Bell
+    AlertTriangle, MoreVertical, Eye, FileText, PauseCircle, PlayCircle, User, Hash, Bell, Download
 } from 'lucide-react';
 import { ComplaintManager } from '../../../shared/utils/ComplaintManager';
 import Modal from '../../../shared/components/Modal';
+import ComplaintExportModal from './ComplaintExportModal';
 import { useToast } from '../../../shared/components/Toast';
 import { useLanguage } from '../../../shared/context/LanguageContext';
+import { supabase } from '../../../lib/supabase';
 
-const ComplaintList = () => {
+const ComplaintList = ({ user }) => {
     const { t } = useLanguage();
     const toast = useToast();
 
     // State
     const [complaints, setComplaints] = useState([]);
+    const [types, setTypes] = useState([]);
     const [filteredComplaints, setFilteredComplaints] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -26,33 +29,116 @@ const ComplaintList = () => {
     const [isSuspendModalOpen, setIsSuspendModalOpen] = useState(false);
     const [suspensionReason, setSuspensionReason] = useState('');
     const [complaintToSuspend, setComplaintToSuspend] = useState(null);
+    const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+
+    // Closure Modal
+    const [isClosureModalOpen, setIsClosureModalOpen] = useState(false);
+    const [closureReason, setClosureReason] = useState('');
+    const [complaintToClose, setComplaintToClose] = useState(null);
 
     // Reminder Logs Modal
     const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
     const [selectedReminderLogs, setSelectedReminderLogs] = useState([]);
 
     useEffect(() => {
-        loadComplaints();
+        loadData();
+
+        // Request Notification Permission
+        if (Notification.permission !== 'granted') {
+            Notification.requestPermission();
+        }
+
+        // Real-time Subscription
+        const channel = supabase
+            .channel('complaints-realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'complaints' }, async (payload) => {
+                console.log('Real-time Event:', payload);
+
+                if (payload.eventType === 'INSERT') {
+                    // Fetch full data with relations
+                    const newComplaint = await ComplaintManager.getComplaintById(payload.new.id);
+                    if (newComplaint) {
+                        setComplaints(prev => [newComplaint, ...prev]);
+                        toast.success(t('common.success'), 'تم استلام شكوى جديدة');
+
+                        // Trigger Browser Notification
+                        if (Notification.permission === 'granted') {
+                            const agentName = newComplaint.agent?.name || 'موطف';
+                            new Notification('شكوى جديدة', {
+                                body: `تم رفع شكوى جديدة من قبل الموظف ${agentName}`,
+                                icon: '/logo.png',
+                            });
+                            // Optional: Play a sound
+                            const audio = new Audio('/notification.mp3');
+                            audio.play().catch(e => console.log('Audio play failed:', e));
+                        }
+                    }
+                } else if (payload.eventType === 'UPDATE') {
+                    // Fetch full updated data
+                    const updatedComplaint = await ComplaintManager.getComplaintById(payload.new.id);
+                    if (updatedComplaint) {
+                        setComplaints(prev => prev.map(c => c.id === payload.new.id ? updatedComplaint : c));
+                    }
+                } else if (payload.eventType === 'DELETE') {
+                    setComplaints(prev => prev.filter(c => c.id !== payload.old.id));
+                }
+            })
+            .subscribe((status) => {
+                console.log('Realtime Subscription Status:', status);
+                if (status === 'SUBSCRIBED') {
+                    toast.success('تم الاتصال', 'تم تفعيل التحديث المباشر');
+                }
+            });
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, []);
 
     useEffect(() => {
         filterComplaints();
     }, [searchTerm, filterStatus, filterDate, complaints]);
 
-    const loadComplaints = async () => {
+    const loadData = async () => {
         setIsLoading(true);
         try {
-            // Admin usually sees ALL complaints
-            const allComplaints = await ComplaintManager.getAllComplaints();
+            const [allComplaints, allTypes] = await Promise.all([
+                ComplaintManager.getAllComplaints(),
+                ComplaintManager.getComplaintTypes()
+            ]);
+
             // Sort by date desc
             const sorted = allComplaints.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
             setComplaints(sorted);
+            setTypes(allTypes);
         } catch (error) {
             console.error(error);
             toast.error(t('common.error'), t('complaints.loadError'));
         } finally {
             setIsLoading(false);
         }
+    };
+
+    // Helper to calculate duration
+    const calculateDuration = (start, end) => {
+        if (!start || !end) return '-';
+        const startTime = new Date(start);
+        const endTime = new Date(end);
+        const diffMs = endTime - startTime;
+
+        if (diffMs < 0) return '-';
+        if (diffMs < 60000) return 'أقل من دقيقة';
+
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        const diffHrs = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+        let parts = [];
+        if (diffDays > 0) parts.push(`${diffDays} يوم`);
+        if (diffHrs > 0) parts.push(`${diffHrs} ساعة`);
+        if (diffMins > 0) parts.push(`${diffMins} دقيقة`);
+
+        return parts.join(' و ');
     };
 
     const filterComplaints = () => {
@@ -69,7 +155,11 @@ const ComplaintList = () => {
         }
 
         // Status Filter
-        if (filterStatus !== 'All') {
+        if (filterStatus === 'HighPriority') {
+            result = result.filter(c => (c.reminder_count || 0) >= 4);
+        } else if (filterStatus === 'MediumPriority') {
+            result = result.filter(c => (c.reminder_count || 0) >= 2);
+        } else if (filterStatus !== 'All') {
             result = result.filter(c => c.status === filterStatus);
         }
 
@@ -104,15 +194,37 @@ const ComplaintList = () => {
         }
     };
 
+    // Updated translation helper for new filters (assuming existing keys or fallback)
+    const getFilterLabel = (status) => {
+        if (status === 'HighPriority') return 'الأكثر أهمية (4+)';
+        if (status === 'MediumPriority') return 'متوسطة الأهمية (2+)';
+        return getStatusLabel(status);
+    };
+
     const handleUpdateStatus = async (id, newStatus, reason = null) => {
         try {
             const updates = { status: newStatus };
-            if (reason) updates.suspension_reason = reason;
+            if (newStatus === 'Suspended' && reason) updates.suspension_reason = reason;
+            if (newStatus === 'Resolved' && reason) {
+                updates.closure_reason = reason;
+                updates.resolved_at = new Date().toISOString(); // Set timestamp
+            }
 
+            // ... (user prop logic remains same)
+            if (newStatus === 'Resolved') {
+                if (user) {
+                    updates.resolved_by = user.id;
+                } else {
+                    console.error('ComplaintList: No user prop provided');
+                }
+            }
+
+            console.log('ComplaintList: Updating complaint with:', updates);
             await ComplaintManager.updateComplaint(id, updates);
             toast.success(t('common.success'), t('complaints.statusUpdateSuccess'));
-            loadComplaints();
+            loadData();
         } catch (error) {
+            console.error(error);
             toast.error(t('common.error'), t('complaints.updateError'));
         }
     };
@@ -140,10 +252,24 @@ const ComplaintList = () => {
 
     return (
         <div style={{ padding: '1.5rem', color: '#e2e8f0', height: '100%', display: 'flex', flexDirection: 'column' }}>
+            {/* ... (Header) */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{t('sidebar.complaintsManage')}</h2>
-
-                <button onClick={loadComplaints} style={{ background: 'transparent', border: 'none', color: '#3b82f6', cursor: 'pointer' }}>{t('forms.reset')}</button>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                    <button
+                        onClick={() => setIsExportModalOpen(true)}
+                        style={{
+                            background: 'rgba(59, 130, 246, 0.2)', border: '1px solid #3b82f6',
+                            color: '#60a5fa', cursor: 'pointer', padding: '0.6rem 1.2rem',
+                            borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.5rem',
+                            fontWeight: '600'
+                        }}
+                    >
+                        <Download size={18} />
+                        تصدير Excel
+                    </button>
+                    <button onClick={loadData} style={{ background: 'transparent', border: 'none', color: '#3b82f6', cursor: 'pointer' }}>{t('forms.reset')}</button>
+                </div>
             </div>
 
             {/* Filters */}
@@ -152,6 +278,7 @@ const ComplaintList = () => {
                 background: 'rgba(30, 41, 59, 0.5)', padding: '1rem', borderRadius: '12px',
                 flexWrap: 'wrap'
             }}>
+                {/* ... (Search and Date inputs remain same, skipping to buttons) */}
                 <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
                     <Search size={18} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                     <input
@@ -184,9 +311,9 @@ const ComplaintList = () => {
                     />
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                     <Filter size={18} color="#94a3b8" />
-                    {['All', 'Pending', 'Processing', 'Suspended', 'Resolved'].map(status => (
+                    {['All', 'HighPriority', 'MediumPriority', 'Pending', 'Processing', 'Suspended', 'Resolved'].map(status => (
                         <button
                             key={status}
                             onClick={() => setFilterStatus(status)}
@@ -194,54 +321,55 @@ const ComplaintList = () => {
                                 padding: '0.4rem 0.8rem',
                                 borderRadius: '6px',
                                 border: '1px solid',
-                                borderColor: filterStatus === status ? getStatusColor(status) : 'transparent',
-                                background: filterStatus === status ? `${getStatusColor(status)}20` : 'rgba(255,255,255,0.05)',
-                                color: filterStatus === status ? getStatusColor(status) : '#94a3b8',
+                                borderColor: filterStatus === status ? '#3b82f6' : 'transparent',
+                                background: filterStatus === status ? `rgba(59, 130, 246, 0.2)` : 'rgba(255,255,255,0.05)',
+                                color: filterStatus === status ? '#60a5fa' : '#94a3b8',
                                 cursor: 'pointer',
                                 fontSize: '0.85rem'
                             }}
                         >
-                            {status === 'All' ? t('forms.select') : getStatusLabel(status)}
+                            {status === 'All' ? t('forms.select') : getFilterLabel(status)}
                         </button>
                     ))}
                 </div>
             </div>
 
-            {/* Table */}
+            {/* ... (Table remains mostly same) */}
             <div style={{ flex: 1, overflow: 'auto', background: 'rgba(30, 41, 59, 0.3)', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', whiteSpace: 'nowrap' }}>
+                    {/* ... (Thread) */}
                     <thead style={{ background: 'rgba(15, 23, 42, 0.5)', position: 'sticky', top: 0 }}>
                         <tr>
                             <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>{t('التذكيرات')}</th>
                             <th style={{ padding: '1rem', textAlign: 'right', color: '#94a3b8', fontSize: '0.85rem' }}>{t('complaints.customerName')}</th>
                             <th style={{ padding: '1rem', textAlign: 'right', color: '#94a3b8', fontSize: '0.85rem' }}>{t('complaints.type')}</th>
-                            <th style={{ padding: '1rem', textAlign: 'right', color: '#94a3b8', fontSize: '0.85rem' }}>{t('complaints.date')}</th>
+                            <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>تاريخ الرفع</th>
+                            <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>تاريخ الإغلاق</th>
+                            <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>المدة</th>
                             <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>{t('complaints.status')}</th>
                             <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>{t('complaints.actions')}</th>
                         </tr>
                     </thead>
                     <tbody>
                         {isLoading ? (
-                            <tr><td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>{t('common.loading')}</td></tr>
+                            <tr><td colSpan="8" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>{t('common.loading')}</td></tr>
                         ) : filteredComplaints.length === 0 ? (
-                            <tr><td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>{t('complaints.noComplaintsFound') || t('common.search')}...</td></tr>
+                            <tr><td colSpan="8" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>{t('complaints.noComplaintsFound') || t('common.search')}...</td></tr>
                         ) : (
                             filteredComplaints.map(complaint => {
-                                // Priority Logic
+                                // ... (Priority Logic same)
                                 const reminderCount = complaint.reminder_count || 0;
                                 let rowStyle = { borderBottom: '1px solid rgba(255, 255, 255, 0.05)', transition: 'background 0.2s' };
-                                let priorityBadge = null;
 
                                 if (reminderCount >= 4) {
                                     rowStyle = { ...rowStyle, background: 'rgba(239, 68, 68, 0.15)', borderLeft: '3px solid #ef4444' };
-                                    priorityBadge = <span style={{ fontSize: '0.75rem', background: '#ef4444', color: 'white', padding: '2px 6px', borderRadius: '4px', marginLeft: '6px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><Bell size={10} fill="currentColor" /> {reminderCount}</span>;
                                 } else if (reminderCount >= 2) {
                                     rowStyle = { ...rowStyle, background: 'rgba(234, 179, 8, 0.15)', borderLeft: '3px solid #eab308' };
-                                    priorityBadge = <span style={{ fontSize: '0.75rem', background: '#eab308', color: 'black', padding: '2px 6px', borderRadius: '4px', marginLeft: '6px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}><Bell size={10} fill="currentColor" /> {reminderCount}</span>;
                                 }
 
                                 return (
                                     <tr key={complaint.id} style={rowStyle}>
+                                        {/* ... (Cells) */}
                                         <td style={{ padding: '1rem', textAlign: 'center' }}>
                                             <button
                                                 onClick={() => {
@@ -266,8 +394,24 @@ const ComplaintList = () => {
                                         <td style={{ padding: '1rem', color: '#cbd5e1' }}>
                                             {complaint.type?.name || t('forms.optional')}
                                         </td>
-                                        <td style={{ padding: '1rem', color: '#94a3b8', fontSize: '0.9rem' }}>
-                                            {new Date(complaint.created_at).toLocaleDateString('ar-EG')}
+                                        <td style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem', direction: 'ltr' }}>
+                                            {new Date(complaint.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                            <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>
+                                                {new Date(complaint.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                            </div>
+                                        </td>
+                                        <td style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem', direction: 'ltr' }}>
+                                            {complaint.resolved_at ? (
+                                                <>
+                                                    {new Date(complaint.resolved_at).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                                    <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>
+                                                        {new Date(complaint.resolved_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                                    </div>
+                                                </>
+                                            ) : '-'}
+                                        </td>
+                                        <td style={{ padding: '1rem', textAlign: 'center', color: '#fbbf24', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                                            {calculateDuration(complaint.created_at, complaint.resolved_at)}
                                         </td>
                                         <td style={{ padding: '1rem', textAlign: 'center' }}>
                                             <span style={{
@@ -288,7 +432,6 @@ const ComplaintList = () => {
                                                 >
                                                     <Eye size={16} />
                                                 </button>
-                                                {/* Actions */}
                                                 {complaint.status === 'Pending' && (
                                                     <button
                                                         onClick={() => handleUpdateStatus(complaint.id, 'Processing')}
@@ -309,7 +452,11 @@ const ComplaintList = () => {
                                                             <PauseCircle size={16} />
                                                         </button>
                                                         <button
-                                                            onClick={() => handleUpdateStatus(complaint.id, 'Resolved')}
+                                                            onClick={() => {
+                                                                setComplaintToClose(complaint.id);
+                                                                setClosureReason('');
+                                                                setIsClosureModalOpen(true);
+                                                            }}
                                                             style={{ padding: '6px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.1)', border: 'none', color: '#34d399', cursor: 'pointer' }}
                                                             title={t('complaints.statuses.resolved')}
                                                         >
@@ -352,15 +499,44 @@ const ComplaintList = () => {
                                         selectedComplaint.status === 'Processing' ? <PlayCircle size={24} /> :
                                             <Clock size={24} />}
                             </div>
-                            <div>
-                                <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', color: getStatusColor(selectedComplaint.status), marginBottom: '0.2rem' }}>
+                            <div style={{ flex: 1 }}>
+                                <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', color: getStatusColor(selectedComplaint.status), marginBottom: '0.5rem' }}>
                                     {getStatusLabel(selectedComplaint.status)}
                                 </h3>
-                                <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
-                                    {t('complaints.date')}: {new Date(selectedComplaint.created_at).toLocaleString('ar-EG')}
-                                </p>
+                                {/* Extended Timing Info */}
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', fontSize: '0.85rem', color: '#cbd5e1' }}>
+                                    <div>
+                                        <span style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem' }}>تاريخ الرفع:</span>
+                                        {new Date(selectedComplaint.created_at).toLocaleString('ar-EG')}
+                                    </div>
+                                    {selectedComplaint.resolved_at && (
+                                        <>
+                                            <div>
+                                                <span style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem' }}>تاريخ الإغلاق:</span>
+                                                {new Date(selectedComplaint.resolved_at).toLocaleString('ar-EG')}
+                                            </div>
+                                            <div>
+                                                <span style={{ display: 'block', color: '#94a3b8', fontSize: '0.75rem' }}>المدة المستغرقة:</span>
+                                                <span style={{ color: '#fbbf24', fontWeight: 'bold' }}>
+                                                    {calculateDuration(selectedComplaint.created_at, selectedComplaint.resolved_at)}
+                                                </span>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
                             </div>
                         </div>
+
+                        {selectedComplaint.status === 'Resolved' && (
+                            <div style={{ marginBottom: '2rem', padding: '1rem', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '8px', color: '#10b981' }}>
+                                <div style={{ marginBottom: '0.5rem' }}>
+                                    <strong>{t('complaints.closedBy')}:</strong> {selectedComplaint.resolver?.name || 'Unknown'}
+                                </div>
+                                <div>
+                                    <strong>{t('complaints.closureReason')}:</strong> {selectedComplaint.closure_reason || '-'}
+                                </div>
+                            </div>
+                        )}
 
                         {selectedComplaint.status === 'Suspended' && (
                             <div style={{ marginBottom: '2rem', padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', color: '#fca5a5' }}>
@@ -501,7 +677,13 @@ const ComplaintList = () => {
                                         {t('complaints.statuses.suspended')}
                                     </button>
                                     <button
-                                        onClick={() => { handleUpdateStatus(selectedComplaint.id, 'Resolved'); setIsDetailsOpen(false); }}
+                                        onClick={() => {
+                                            // Handle Resolve from Details Modal
+                                            setComplaintToClose(selectedComplaint.id);
+                                            setClosureReason('');
+                                            setIsDetailsOpen(false);
+                                            setIsClosureModalOpen(true);
+                                        }}
                                         style={{ padding: '0.6rem 1rem', background: '#10b981', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer' }}
                                     >
                                         {t('complaints.statuses.resolved')}
@@ -520,42 +702,80 @@ const ComplaintList = () => {
             )}
 
             {/* Suspension Modal */}
-            {
-                isSuspendModalOpen && (
-                    <Modal isOpen={true} onClose={() => setIsSuspendModalOpen(false)} title={t('complaints.statuses.suspended')}>
-                        <div style={{ minWidth: '400px' }}>
-                            <p style={{ color: '#cbd5e1', marginBottom: '1rem' }}>{t('complaints.suspensionPrompt')}</p>
-                            <textarea
-                                value={suspensionReason}
-                                onChange={(e) => setSuspensionReason(e.target.value)}
-                                placeholder={t('complaints.suspensionPlaceholder')}
-                                style={{
-                                    width: '100%', height: '100px', padding: '0.8rem',
-                                    background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255, 255, 255, 0.1)',
-                                    borderRadius: '8px', color: 'white', marginBottom: '1.5rem', resize: 'none'
-                                }}
-                                autoFocus
-                            />
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-                                <button
-                                    onClick={() => setIsSuspendModalOpen(false)}
-                                    style={{ padding: '0.6rem 1.2rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#94a3b8', cursor: 'pointer' }}
-                                >
-                                    {t('common.cancel')}
-                                </button>
-                                <button
-                                    onClick={confirmSuspension}
-                                    style={{ padding: '0.6rem 1.2rem', background: '#ef4444', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer' }}
-                                >
-                                    {t('complaints.confirmSuspension')}
-                                </button>
-                            </div>
+            {isSuspendModalOpen && (
+                <Modal isOpen={true} onClose={() => setIsSuspendModalOpen(false)} title={t('complaints.statuses.suspended')}>
+                    <div style={{ minWidth: '400px' }}>
+                        <p style={{ color: '#cbd5e1', marginBottom: '1rem' }}>{t('complaints.suspensionPrompt')}</p>
+                        <textarea
+                            value={suspensionReason}
+                            onChange={(e) => setSuspensionReason(e.target.value)}
+                            placeholder={t('complaints.suspensionPlaceholder')}
+                            style={{
+                                width: '100%', height: '100px', padding: '0.8rem',
+                                background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255, 255, 255, 0.1)',
+                                borderRadius: '8px', color: 'white', marginBottom: '1.5rem', resize: 'none'
+                            }}
+                            autoFocus
+                        />
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+                            <button
+                                onClick={() => setIsSuspendModalOpen(false)}
+                                style={{ padding: '0.6rem 1.2rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#94a3b8', cursor: 'pointer' }}
+                            >
+                                {t('common.cancel')}
+                            </button>
+                            <button
+                                onClick={confirmSuspension}
+                                style={{ padding: '0.6rem 1.2rem', background: '#ef4444', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer' }}
+                            >
+                                {t('complaints.confirmSuspension')}
+                            </button>
                         </div>
-                    </Modal>
-                )
-            }
+                    </div>
+                </Modal>
+            )}
 
-
+            {/* Closure Modal */}
+            {isClosureModalOpen && (
+                <Modal isOpen={true} onClose={() => setIsClosureModalOpen(false)} title={t('complaints.closeConfirm')}>
+                    <div style={{ minWidth: '400px' }}>
+                        <p style={{ color: '#cbd5e1', marginBottom: '1rem' }}>{t('complaints.closureReasonPlaceholder')}</p>
+                        <textarea
+                            value={closureReason}
+                            onChange={(e) => setClosureReason(e.target.value)}
+                            placeholder={t('complaints.closureReason')}
+                            style={{
+                                width: '100%', height: '100px', padding: '0.8rem',
+                                background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255, 255, 255, 0.1)',
+                                borderRadius: '8px', color: 'white', marginBottom: '1.5rem', resize: 'none'
+                            }}
+                            autoFocus
+                        />
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+                            <button
+                                onClick={() => setIsClosureModalOpen(false)}
+                                style={{ padding: '0.6rem 1.2rem', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#94a3b8', cursor: 'pointer' }}
+                            >
+                                {t('common.cancel')}
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    if (!closureReason.trim()) {
+                                        toast.error(t('forms.alert'), t('forms.fillRequired'));
+                                        return;
+                                    }
+                                    await handleUpdateStatus(complaintToClose, 'Resolved', closureReason);
+                                    setIsClosureModalOpen(false);
+                                    setComplaintToClose(null);
+                                }}
+                                style={{ padding: '0.6rem 1.2rem', background: '#10b981', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer' }}
+                            >
+                                {t('complaints.closeConfirm')}
+                            </button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
 
             {/* Reminder Logs Modal */}
             {isReminderModalOpen && (
@@ -596,6 +816,12 @@ const ComplaintList = () => {
                     </div>
                 </Modal>
             )}
+            <ComplaintExportModal
+                isOpen={isExportModalOpen}
+                onClose={() => setIsExportModalOpen(false)}
+                complaints={complaints}
+                types={types}
+            />
         </div >
     );
 };

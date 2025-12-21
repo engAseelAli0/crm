@@ -917,7 +917,7 @@ const AdminDashboardPage = ({ user, onLogout }) => {
                 {/* Complaint Management Tab */}
                 {activeTab === 'complaints_manage' && (
                     <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
-                        <ComplaintList />
+                        <ComplaintList user={user} />
                     </div>
                 )}
 

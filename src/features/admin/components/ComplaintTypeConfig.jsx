@@ -335,7 +335,7 @@ const ComplaintTypeConfig = () => {
                                     cursor: 'pointer'
                                 }}
                             >
-                                {t('forms.cancel')}
+                                {t('إلغاء')}
                             </button>
                             <button
                                 onClick={handleSave}
@@ -349,7 +349,7 @@ const ComplaintTypeConfig = () => {
                                     fontWeight: '600'
                                 }}
                             >
-                                {t('forms.save')}
+                                {t('حفظ')}
                             </button>
                         </div>
                     </div>

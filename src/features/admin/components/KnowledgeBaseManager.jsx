@@ -44,16 +44,10 @@ const KnowledgeBaseManager = () => {
     const handleImageChange = (e) => {
         const files = Array.from(e.target.files);
         if (files.length > 0) {
-            files.forEach(file => {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    setFormData(prev => ({
-                        ...prev,
-                        images: [...(prev.images || []), reader.result]
-                    }));
-                };
-                reader.readAsDataURL(file);
-            });
+            setFormData(prev => ({
+                ...prev,
+                images: [...(prev.images || []), ...files]
+            }));
         }
     };
 
@@ -67,21 +61,34 @@ const KnowledgeBaseManager = () => {
     const handleSave = async () => {
         if (!formData.title) return;
 
+        setIsLoading(true);
+
+        // Process Images: Upload if File, keep if String
+        const processedImages = await Promise.all((formData.images || []).map(async (img) => {
+            if (img instanceof File) {
+                return await DataManager.uploadFile(img);
+            }
+            return img;
+        }));
+
+        // Filter out any failed uploads (null)
+        const finalImages = processedImages.filter(img => img !== null);
+
+        const payload = {
+            title: formData.title,
+            content: formData.content,
+            images: finalImages
+        };
+
         if (mode === 'add') {
-            await DataManager.addKnowledgeBaseItem({
-                title: formData.title,
-                content: formData.content,
-                images: formData.images || []
-            });
+            await DataManager.addKnowledgeBaseItem(payload);
         } else {
-            await DataManager.updateKnowledgeBaseItem(formData.id, {
-                title: formData.title,
-                content: formData.content,
-                images: formData.images || []
-            });
+            await DataManager.updateKnowledgeBaseItem(formData.id, payload);
         }
+
         setIsModalOpen(false);
-        loadData();
+        await loadData();
+        setIsLoading(false);
     };
 
     const handleDelete = async (id) => {
@@ -95,6 +102,27 @@ const KnowledgeBaseManager = () => {
         item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (item.content && item.content.toLowerCase().includes(searchTerm.toLowerCase()))
     );
+
+    // Preview State
+    const [previewItem, setPreviewItem] = useState(null);
+    const [innerSearchTerm, setInnerSearchTerm] = useState('');
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+    const highlightText = (text, highlight) => {
+        if (!highlight.trim()) return text;
+        const regex = new RegExp(`(${highlight})`, 'gi');
+        return text.split(regex).map((part, i) =>
+            regex.test(part) ? <mark key={i} style={{ backgroundColor: '#fde047', color: 'black', borderRadius: '4px', padding: '0 2px' }}>{part}</mark> : part
+        );
+    };
+
+    // Reset inner search when preview changes
+    useEffect(() => {
+        if (previewItem) {
+            setInnerSearchTerm('');
+            setCurrentImageIndex(0);
+        }
+    }, [previewItem]);
 
     return (
         <div className="custom-scrollbar" style={{ padding: '1rem', height: '100%' }}>
@@ -160,7 +188,7 @@ const KnowledgeBaseManager = () => {
                         transition: 'transform 0.2s',
                         height: '100%'
                     }}>
-                    }}>
+
                         {(item.images && item.images.length > 0) || item.image_url ? (
                             <div style={{ height: '160px', width: '100%', overflow: 'hidden', borderBottom: '1px solid rgba(148, 163, 184, 0.1)', position: 'relative' }}>
                                 <img
@@ -191,6 +219,13 @@ const KnowledgeBaseManager = () => {
                             </p>
 
                             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: 'auto' }}>
+                                <button
+                                    onClick={() => setPreviewItem(item)}
+                                    style={{ padding: '8px', borderRadius: '8px', background: 'rgba(148, 163, 184, 0.1)', color: '#94a3b8', border: 'none', cursor: 'pointer' }}
+                                    title="عرض (بحث داخل المقال)"
+                                >
+                                    <BookOpen size={16} /> {/* Using BookOpen as Eye/Preview alternative or just import Eye */}
+                                </button>
                                 <button
                                     onClick={() => handleOpenEdit(item)}
                                     style={{ padding: '8px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.1)', color: '#34d399', border: 'none', cursor: 'pointer' }}
@@ -264,7 +299,11 @@ const KnowledgeBaseManager = () => {
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '0.5rem', marginBottom: '1rem' }}>
                                 {formData.images.map((img, idx) => (
                                     <div key={idx} style={{ position: 'relative', height: '100px', borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
-                                        <img src={img} alt={`Preview ${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        <img
+                                            src={img instanceof File ? URL.createObjectURL(img) : img}
+                                            alt={`Preview ${idx}`}
+                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                        />
                                         <button
                                             onClick={() => removeImage(idx)}
                                             style={{
@@ -341,6 +380,101 @@ const KnowledgeBaseManager = () => {
 
                 </div>
             </Modal>
+
+            {/* Preview Modal for Search */}
+            {previewItem && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.8)',
+                    backdropFilter: 'blur(5px)',
+                    zIndex: 100,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '2rem'
+                }} onClick={() => setPreviewItem(null)}>
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="custom-scrollbar"
+                        style={{
+                            background: '#1e293b',
+                            width: '100%',
+                            maxWidth: '700px',
+                            maxHeight: '85vh',
+                            borderRadius: '24px',
+                            overflowY: 'auto',
+                            position: 'relative',
+                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+                        }}
+                    >
+                        <button
+                            onClick={() => setPreviewItem(null)}
+                            style={{
+                                position: 'absolute',
+                                left: '1.5rem',
+                                top: '1.5rem',
+                                background: 'rgba(0,0,0,0.3)',
+                                border: 'none',
+                                borderRadius: '50%',
+                                width: '36px',
+                                height: '36px',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                color: 'white',
+                                cursor: 'pointer',
+                                zIndex: 10
+                            }}
+                        >
+                            <X size={18} />
+                        </button>
+
+                        {/* Image Slider Replica */}
+                        {(previewItem.images?.length > 0 || previewItem.image_url) && (() => {
+                            const imagesList = previewItem.images && previewItem.images.length > 0 ? previewItem.images : [previewItem.image_url];
+                            if (imagesList.length === 0) return null;
+                            return (
+                                <div style={{ position: 'relative', width: '100%', height: '300px', background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                                    <img src={imagesList[currentImageIndex]} alt="Slide" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                                    {imagesList.length > 1 && (
+                                        <div style={{ position: 'absolute', bottom: '16px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '8px' }}>
+                                            {imagesList.map((_, idx) => (
+                                                <div key={idx} onClick={(e) => { e.stopPropagation(); setCurrentImageIndex(idx); }}
+                                                    style={{ width: '8px', height: '8px', borderRadius: '50%', background: idx === currentImageIndex ? '#60a5fa' : 'rgba(255,255,255,0.3)', cursor: 'pointer' }} />
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })()}
+
+                        <div style={{ padding: '2rem' }}>
+                            <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1.5rem', color: 'white', lineHeight: '1.3' }}>
+                                {previewItem.title}
+                            </h1>
+
+                            {/* Inner Search */}
+                            <div style={{ marginBottom: '1rem', position: 'relative' }}>
+                                <input
+                                    type="text"
+                                    placeholder="بحث داخل المقال..."
+                                    value={innerSearchTerm}
+                                    onChange={(e) => setInnerSearchTerm(e.target.value)}
+                                    style={{
+                                        width: '100%', padding: '0.75rem 2.5rem 0.75rem 1rem',
+                                        borderRadius: '12px', border: '1px solid rgba(148, 163, 184, 0.2)',
+                                        background: 'rgba(15, 23, 42, 0.5)', color: 'white'
+                                    }}
+                                />
+                                <Search size={18} color="#94a3b8" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                            </div>
+
+                            <div style={{ color: '#e2e8f0', lineHeight: '1.7', fontSize: '1rem', whiteSpace: 'pre-wrap' }}>
+                                {highlightText(previewItem.content, innerSearchTerm)}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -400,5 +400,111 @@ export const DataManager = {
 
     if (error) console.error('Error deleting KB item:', error);
     return error;
+  },
+
+  // --- Storage ---
+  uploadFile: async (file, bucket = 'knowledge-base') => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .upload(filePath, file);
+
+      if (error) throw error;
+
+      // Get Public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      return null;
+    }
+  },
+
+  // --- Reminders ---
+
+  // --- Reminders ---
+  addReminder: async (reminder) => {
+    // reminder: { agentId, phoneNumber, reason, durationHours, durationUnit: 'hours' | 'minutes' }
+    const unit = reminder.durationUnit || 'hours';
+    const multiplier = unit === 'minutes' ? 60 * 1000 : 60 * 60 * 1000;
+
+    // Note: durationHours here acts as "duration value"
+    const expiresAt = new Date(Date.now() + reminder.durationHours * multiplier);
+
+    const { data, error } = await supabase
+      .from('reminders')
+      .insert({
+        agent_id: reminder.agentId,
+        phone_number: reminder.phoneNumber,
+        reason: reminder.reason,
+        duration_hours: reminder.durationHours, // We keep the column name but it stores the value
+        duration_unit: unit,
+        expires_at: expiresAt.toISOString(),
+        status: 'pending'
+      })
+      .select()
+      .single();
+
+    if (error) console.error('Error adding reminder:', error);
+    return data;
+  },
+
+  getReminders: async (agentId, status = 'pending') => {
+    const { data, error } = await supabase
+      .from('reminders')
+      .select('*')
+      .eq('agent_id', agentId)
+      .eq('status', status)
+      .order('created_at', { ascending: false });
+
+    if (error) console.error('Error fetching reminders:', error);
+    return data || [];
+  },
+
+  resolveReminder: async (id) => {
+    const { data, error } = await supabase
+      .from('reminders')
+      .update({ status: 'resolved', is_read: true })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) console.error('Error resolving reminder:', error);
+    return data;
+  },
+
+  checkExpiredReminders: async (agentId) => {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from('reminders')
+      .select('*')
+      .eq('agent_id', agentId)
+      .eq('status', 'pending')
+      .lte('expires_at', now)
+      .eq('is_read', false);
+
+    if (error) console.error('Error checking expired reminders:', error);
+    return data || [];
+  },
+
+  markReminderRead: async (id) => {
+    // We'll make markReminderRead also resolve it, as per user's request
+    // "سوا تم عمل لها تمت المراجعه من الاشعار ... وتظهر في التذكيرات المحلولة"
+    const { data, error } = await supabase
+      .from('reminders')
+      .update({ is_read: true, status: 'resolved' })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) console.error('Error marking reminder read:', error);
+    return data;
   }
 };
