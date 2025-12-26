@@ -542,15 +542,16 @@ const ComplaintSubmission = ({ user }) => {
                                     <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8' }}>{t('complaints.type')}</th>
                                     <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8' }}>تاريخ الرفع</th>
                                     <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8' }}>تاريخ الإغلاق</th>
+                                    <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8' }}>بواسطة</th>
                                     <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8' }}>المدة</th>
                                     <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8' }}>{t('complaints.actions')}</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {isLoadingHistory ? (
-                                    <tr><td colSpan="8" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>{t('common.loading')}</td></tr>
+                                    <tr><td colSpan="9" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>{t('common.loading')}</td></tr>
                                 ) : filteredComplaints.length === 0 ? (
-                                    <tr><td colSpan="8" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>{t('complaints.noComplaintsFound')}</td></tr>
+                                    <tr><td colSpan="9" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>{t('complaints.noComplaintsFound')}</td></tr>
                                 ) : (
                                     filteredComplaints.map(complaint => (
                                         <tr key={complaint.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
@@ -581,6 +582,9 @@ const ComplaintSubmission = ({ user }) => {
                                                         </div>
                                                     </>
                                                 ) : '-'}
+                                            </td>
+                                            <td style={{ padding: '1rem', textAlign: 'center', color: '#e2e8f0', fontSize: '0.9rem' }}>
+                                                {complaint.resolver?.name || '-'}
                                             </td>
                                             <td style={{ padding: '1rem', textAlign: 'center', color: '#fbbf24', fontSize: '0.85rem', fontWeight: 'bold' }}>
                                                 {calculateDuration(complaint.created_at, complaint.resolved_at)}

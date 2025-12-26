@@ -345,6 +345,7 @@ const ComplaintList = ({ user }) => {
                             <th style={{ padding: '1rem', textAlign: 'right', color: '#94a3b8', fontSize: '0.85rem' }}>{t('complaints.type')}</th>
                             <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>تاريخ الرفع</th>
                             <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>تاريخ الإغلاق</th>
+                            <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>بواسطة</th>
                             <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>المدة</th>
                             <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>{t('complaints.status')}</th>
                             <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>{t('complaints.actions')}</th>
@@ -352,9 +353,9 @@ const ComplaintList = ({ user }) => {
                     </thead>
                     <tbody>
                         {isLoading ? (
-                            <tr><td colSpan="8" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>{t('common.loading')}</td></tr>
+                            <tr><td colSpan="9" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>{t('common.loading')}</td></tr>
                         ) : filteredComplaints.length === 0 ? (
-                            <tr><td colSpan="8" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>{t('complaints.noComplaintsFound') || t('common.search')}...</td></tr>
+                            <tr><td colSpan="9" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>{t('complaints.noComplaintsFound') || t('common.search')}...</td></tr>
                         ) : (
                             filteredComplaints.map(complaint => {
                                 // ... (Priority Logic same)
@@ -409,6 +410,9 @@ const ComplaintList = ({ user }) => {
                                                     </div>
                                                 </>
                                             ) : '-'}
+                                        </td>
+                                        <td style={{ padding: '1rem', textAlign: 'center', color: '#e2e8f0', fontSize: '0.9rem' }} title={`Resolved By ID: ${complaint.resolved_by}, Resolver Obj: ${JSON.stringify(complaint.resolver)}`}>
+                                            {complaint.resolver?.name || (complaint.resolved_by ? 'User ID: ' + complaint.resolved_by.slice(0, 5) : '-')}
                                         </td>
                                         <td style={{ padding: '1rem', textAlign: 'center', color: '#fbbf24', fontSize: '0.85rem', fontWeight: 'bold' }}>
                                             {calculateDuration(complaint.created_at, complaint.resolved_at)}

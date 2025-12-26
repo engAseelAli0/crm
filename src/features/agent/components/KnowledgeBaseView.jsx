@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, BookOpen, X, ChevronLeft, ChevronRight, Maximize2, ZoomIn, ZoomOut } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, X, BookOpen, ArrowLeft, Maximize2, ZoomIn, ZoomOut } from 'lucide-react';
 import { DataManager } from '../../../shared/utils/DataManager';
 
 const KnowledgeBaseView = ({ onClose }) => {
@@ -34,16 +34,33 @@ const KnowledgeBaseView = ({ onClose }) => {
         setIsLoading(false);
     };
 
-    // Highlight Helper
-    const highlightText = (text, highlight) => {
-        if (!highlight.trim()) {
-            return text;
-        }
-        const regex = new RegExp(`(${highlight})`, 'gi');
-        const parts = text.split(regex);
-        return parts.map((part, i) =>
-            regex.test(part) ? <mark key={i} style={{ backgroundColor: '#fde047', color: 'black', borderRadius: '4px', padding: '0 2px' }}>{part}</mark> : part
-        );
+    // Strip HTML for preview
+    const stripHtml = (html) => {
+        if (!html) return '';
+        const tmp = document.createElement("DIV");
+        tmp.innerHTML = html;
+        return tmp.textContent || tmp.innerText || "";
+    };
+
+    // Highlight Helper for HTML Content
+    // Highlight Helper for HTML Content
+    const highlightHtml = (htmlContent, keyword) => {
+        if (!keyword.trim() || !htmlContent) return htmlContent;
+
+        // Escape special characters in keyword to avoid regex errors
+        const escapeRegExp = (string) => {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        };
+        const escapedKeyword = escapeRegExp(keyword.trim());
+
+        // Match HTML tags OR the keyword. Prioritize matching tags (and ignoring them).
+        // Using explicit RegExp constructor to avoid literal parsing issues in some environments
+        const regex = new RegExp(`(<[^>]+>)|(${escapedKeyword})`, 'gi');
+
+        return htmlContent.replace(regex, (match, tag, text) => {
+            if (tag) return tag; // Return HTML tags unchanged
+            return `<mark style="background-color: #fde047; color: black; border-radius: 4px; padding: 0 2px;">${match}</mark>`;
+        });
     };
 
     // Reset inner search when item changes
@@ -53,19 +70,27 @@ const KnowledgeBaseView = ({ onClose }) => {
         }
     }, [selectedItem]);
 
-    const filteredItems = items.filter(item =>
-        item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (item.content && item.content.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    const filteredItems = items.filter(item => {
+        const lowerTerm = searchTerm.toLowerCase();
+        const titleMatch = item.title.toLowerCase().includes(lowerTerm);
+        const rawContentMatch = item.content && item.content.toLowerCase().includes(lowerTerm);
+        // Also search in stripped text to find words even if tags split them (mostly)
+        const strippedMatch = item.content && stripHtml(item.content).toLowerCase().includes(lowerTerm);
+
+        return titleMatch || rawContentMatch || strippedMatch;
+    });
 
     return (
         <div className="custom-scrollbar" style={{
+            width: '100%',
             height: '100%',
             display: 'flex',
             flexDirection: 'column',
             background: 'linear-gradient(to bottom, #0f172a, #1e293b)',
-            // Removed absolute positioning to prevent overlap with header
-            zIndex: 10
+            zIndex: 10,
+            borderRadius: '16px', // Rounded corners to fit nicely inside padding
+            overflow: 'hidden', // Ensure content respects border radius
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
         }}>
 
             {/* Header */}
@@ -189,28 +214,57 @@ const KnowledgeBaseView = ({ onClose }) => {
                                 </div>
                             )}
                             <div style={{ padding: '1.25rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                                <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '0.75rem', color: '#f8fafc' }}>{item.title}</h3>
-                                <p style={{
-                                    color: '#94a3b8',
-                                    fontSize: '0.9rem',
-                                    lineHeight: '1.5',
-                                    display: '-webkit-box',
-                                    WebkitLineClamp: '3',
-                                    WebkitBoxOrient: 'vertical',
-                                    overflow: 'hidden',
-                                    flex: 1
-                                }}>
-                                    {item.content}
-                                </p>
-                                <span style={{
-                                    display: 'inline-block',
+                                <h3 style={{ margin: '0 0 0.5rem 0', color: '#f1f5f9', fontSize: '1.1rem' }}>{item.title}</h3>
+
+                                <div style={{ flex: 1, overflow: 'hidden' }}>
+                                    {item.content && item.content.toLowerCase().includes('<table') ? (
+                                        <div
+                                            style={{
+                                                fontSize: '0.75rem',
+                                                color: '#cbd5e1',
+                                                maxHeight: '120px',
+                                                overflow: 'hidden',
+                                                position: 'relative'
+                                            }}
+                                            className="card-preview-html"
+                                        >
+                                            <style>{`
+                                                .card-preview-html table { width: 100% !important; border-collapse: collapse !important; margin-bottom: 0 !important; }
+                                                .card-preview-html th, .card-preview-html td { 
+                                                    padding: 4px !important; 
+                                                    border: 1px solid rgba(148, 163, 184, 0.2) !important; 
+                                                    text-align: center !important; 
+                                                    background: transparent !important;
+                                                }
+                                                .card-preview-html th { background: rgba(30, 41, 59, 0.5) !important; font-weight: bold; }
+                                                .card-preview-html img { display: none !important; } 
+                                                .card-preview-html p { margin: 0 0 4px 0 !important; }
+                                            `}</style>
+                                            <div dangerouslySetInnerHTML={{ __html: item.content }} />
+                                            {/* Gradient Fade for overflow */}
+                                            <div style={{
+                                                position: 'absolute', bottom: 0, left: 0, right: 0, height: '40px',
+                                                background: 'linear-gradient(to bottom, transparent, rgba(30, 41, 59, 0.9))'
+                                            }} />
+                                        </div>
+                                    ) : (
+                                        <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.9rem', lineHeight: '1.5' }}>
+                                            {item.content ? stripHtml(item.content).substring(0, 100) + '...' : 'يعرض هنا وصف مختصر...'}
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div style={{
                                     marginTop: '1rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
                                     color: '#60a5fa',
                                     fontSize: '0.85rem',
-                                    fontWeight: 'bold'
+                                    fontWeight: '600'
                                 }}>
-                                    اقرأ المزيد &larr;
-                                </span>
+                                    اقرأ المزيد <ArrowLeft size={14} />
+                                </div>
                             </div>
                         </div>
                     ))}
@@ -231,7 +285,7 @@ const KnowledgeBaseView = ({ onClose }) => {
                     top: 0, left: 0, right: 0, bottom: 0,
                     background: 'rgba(0,0,0,0.8)',
                     backdropFilter: 'blur(5px)',
-                    zIndex: 100,
+                    zIndex: 20000,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -243,12 +297,14 @@ const KnowledgeBaseView = ({ onClose }) => {
                         style={{
                             background: '#1e293b',
                             width: '100%',
-                            maxWidth: '700px', // Reduced width
-                            maxHeight: '85vh',  // Reduced height
+                            maxWidth: '900px', // Increased width for better layout
+                            maxHeight: '90vh',  // Increased height
                             borderRadius: '24px',
                             overflowY: 'auto',
                             position: 'relative',
-                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                            display: 'flex',
+                            flexDirection: 'column'
                         }}
                     >
                         <button
@@ -265,7 +321,7 @@ const KnowledgeBaseView = ({ onClose }) => {
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 color: 'white',
                                 cursor: 'pointer',
-                                zIndex: 10
+                                zIndex: 20
                             }}
                         >
                             <X size={18} />
@@ -284,18 +340,18 @@ const KnowledgeBaseView = ({ onClose }) => {
                                     style={{
                                         position: 'relative',
                                         width: '100%',
-                                        height: '300px', // Reduced image height
-                                        marginBottom: '0',
+                                        height: '350px', // Slightly larger image area
+                                        flexShrink: 0,
                                         background: '#0f172a',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        overflow: 'hidden', // Essential for zoom
+                                        overflow: 'hidden',
                                         cursor: isHovering ? 'zoom-out' : 'zoom-in'
                                     }}
                                     onClick={() => setIsHovering(!isHovering)}
                                     onMouseMove={handleMouseMove}
-                                    onMouseLeave={() => setIsHovering(false)} // Optional: Turn off if mouse leaves container? User didn't ask, but good UX. Let's keep it simply toggle for now as requested. actually better to turn off on leave to avoid getting stuck "zoomed" when moving away.
+                                    onMouseLeave={() => setIsHovering(false)}
                                 >
                                     <img
                                         src={imagesList[currentImageIndex]}
@@ -306,11 +362,11 @@ const KnowledgeBaseView = ({ onClose }) => {
                                             objectFit: 'contain',
                                             transform: isHovering ? 'scale(2)' : 'scale(1)',
                                             transformOrigin: `${cursorPos.x}% ${cursorPos.y}%`,
-                                            transition: 'transform 0.2s ease-out' // Slightly slower for click feel
+                                            transition: 'transform 0.2s ease-out'
                                         }}
                                     />
 
-                                    {/* Navigation Buttons (Only allow nav when not zoomed for better UX, or always? User might want to zoom then switch. Let's keep them but z-index high) */}
+                                    {/* Navigation Buttons */}
                                     {imagesList.length > 1 && !isHovering && (
                                         <>
                                             <button
@@ -321,11 +377,13 @@ const KnowledgeBaseView = ({ onClose }) => {
                                                 style={{
                                                     position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)',
                                                     background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none', borderRadius: '50%',
-                                                    width: '36px', height: '36px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                    zIndex: 10
+                                                    width: '40px', height: '40px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                    zIndex: 10, transition: 'background 0.2s'
                                                 }}
+                                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.7)'}
+                                                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.5)'}
                                             >
-                                                <ChevronLeft size={20} />
+                                                <ChevronLeft size={24} />
                                             </button>
                                             <button
                                                 onClick={(e) => {
@@ -335,17 +393,20 @@ const KnowledgeBaseView = ({ onClose }) => {
                                                 style={{
                                                     position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)',
                                                     background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none', borderRadius: '50%',
-                                                    width: '36px', height: '36px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                    zIndex: 10
+                                                    width: '40px', height: '40px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                    zIndex: 10, transition: 'background 0.2s'
                                                 }}
+                                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.7)'}
+                                                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.5)'}
                                             >
-                                                <ChevronRight size={20} />
+                                                <ChevronRight size={24} />
                                             </button>
 
                                             {/* Dots Indicator */}
                                             <div style={{
                                                 position: 'absolute', bottom: '16px', left: '50%', transform: 'translateX(-50%)',
-                                                display: 'flex', gap: '8px', zIndex: 10
+                                                display: 'flex', gap: '8px', zIndex: 10,
+                                                padding: '4px 8px', borderRadius: '12px', background: 'rgba(0,0,0,0.3)'
                                             }}>
                                                 {imagesList.map((_, idx) => (
                                                     <div
@@ -357,7 +418,8 @@ const KnowledgeBaseView = ({ onClose }) => {
                                                         style={{
                                                             width: '8px', height: '8px', borderRadius: '50%',
                                                             background: idx === currentImageIndex ? '#60a5fa' : 'rgba(255,255,255,0.3)',
-                                                            cursor: 'pointer', transition: 'background 0.2s'
+                                                            cursor: 'pointer', transition: 'all 0.2s',
+                                                            transform: idx === currentImageIndex ? 'scale(1.2)' : 'scale(1)'
                                                         }}
                                                     />
                                                 ))}
@@ -368,35 +430,51 @@ const KnowledgeBaseView = ({ onClose }) => {
                             );
                         })()}
 
-                        <div style={{ padding: '2rem' }}> {/* Reduced padding */}
-                            <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1.5rem', color: 'white', lineHeight: '1.3' }}> {/* Reduced title size */}
+                        <div style={{ padding: '2.5rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                            <h1 style={{
+                                fontSize: '1.8rem',
+                                fontWeight: '800',
+                                marginBottom: '2rem',
+                                color: '#f8fafc', // Whiter text for better contrast
+                                lineHeight: '1.4',
+                                textAlign: 'right', // Enforce RTL alignment for title
+                                borderBottom: '1px solid rgba(148, 163, 184, 0.2)',
+                                paddingBottom: '1.5rem'
+                            }}>
                                 {selectedItem.title}
                             </h1>
 
                             {/* Inner Search */}
-                            <div style={{ marginBottom: '1rem', position: 'relative' }}>
+                            <div style={{ marginBottom: '2rem', position: 'relative' }}>
                                 <input
                                     type="text"
-                                    placeholder="بحث داخل المقال..."
+                                    placeholder="بحث في محتوى المقال..."
                                     value={innerSearchTerm}
                                     onChange={(e) => setInnerSearchTerm(e.target.value)}
                                     style={{
-                                        width: '100%', padding: '0.75rem 2.5rem 0.75rem 1rem',
+                                        width: '100%', padding: '0.875rem 3rem 0.875rem 1rem',
                                         borderRadius: '12px', border: '1px solid rgba(148, 163, 184, 0.2)',
-                                        background: 'rgba(15, 23, 42, 0.5)', color: 'white'
+                                        background: 'rgba(15, 23, 42, 0.6)', color: 'white',
+                                        fontSize: '0.95rem',
+                                        transition: 'border-color 0.2s'
                                     }}
+                                    onFocus={(e) => e.target.style.borderColor = '#60a5fa'}
+                                    onBlur={(e) => e.target.style.borderColor = 'rgba(148, 163, 184, 0.2)'}
                                 />
-                                <Search size={18} color="#94a3b8" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                                <Search size={18} color="#94a3b8" style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)' }} />
                             </div>
 
-                            <div style={{
-                                color: '#e2e8f0',
-                                lineHeight: '1.7',
-                                fontSize: '1rem', // Reduced font size
-                                whiteSpace: 'pre-wrap'
-                            }}>
-                                {highlightText(selectedItem.content, innerSearchTerm)}
-                            </div>
+                            <div
+                                className="jodit-wysiwyg"
+                                style={{
+                                    color: '#e2e8f0',
+                                    lineHeight: '1.8', // Increased line height for readability
+                                    fontSize: '1.05rem', // Slightly larger text
+                                    direction: 'rtl', // Enforce RTL
+                                    textAlign: 'right' // Enforce Right Alignment
+                                }}
+                                dangerouslySetInnerHTML={{ __html: highlightHtml(selectedItem.content, innerSearchTerm) }}
+                            />
                         </div>
                     </div>
                 </div>

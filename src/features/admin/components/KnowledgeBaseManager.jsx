@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Edit, Trash2, Search, BookOpen, Image as ImageIcon, X } from 'lucide-react';
+import JoditEditor from 'jodit-react';
 import { DataManager } from '../../../shared/utils/DataManager';
 import Modal from '../../../shared/components/Modal';
 
@@ -108,13 +109,30 @@ const KnowledgeBaseManager = () => {
     const [innerSearchTerm, setInnerSearchTerm] = useState('');
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-    const highlightText = (text, highlight) => {
-        if (!highlight.trim()) return text;
-        const regex = new RegExp(`(${highlight})`, 'gi');
-        return text.split(regex).map((part, i) =>
-            regex.test(part) ? <mark key={i} style={{ backgroundColor: '#fde047', color: 'black', borderRadius: '4px', padding: '0 2px' }}>{part}</mark> : part
-        );
-    };
+    // Jodit Config
+    const config = useMemo(() => ({
+        readonly: false,
+        direction: 'rtl',
+        height: 400,
+        enableDragAndDropFileToEditor: true,
+        language: 'ar',
+        toolbarAdaptive: false,
+        buttons: [
+            'source', '|',
+            'bold', 'strikethrough', 'underline', 'italic', '|',
+            'ul', 'ol', '|',
+            'outdent', 'indent', '|',
+            'font', 'fontsize', 'brush', 'paragraph', '|',
+            'image', 'table', 'link', '|',
+            'align', 'undo', 'redo', '|',
+            'hr', 'eraser', 'copyformat', '|',
+            'symbol', 'fullsize', 'print', 'about'
+        ],
+        uploader: {
+            insertImageAsBase64URI: true
+        },
+        placeholder: 'اكتب التفاصيل هنا...'
+    }), []);
 
     // Reset inner search when preview changes
     useEffect(() => {
@@ -214,9 +232,20 @@ const KnowledgeBaseManager = () => {
 
                         <div style={{ padding: '1.5rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
                             <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '0.75rem', color: '#f8fafc' }}>{item.title}</h3>
-                            <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: '1.5', marginBottom: '1.5rem', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: '3', WebkitBoxOrient: 'vertical' }}>
-                                {item.content}
-                            </p>
+                            <div
+                                style={{
+                                    color: '#94a3b8',
+                                    fontSize: '0.9rem',
+                                    lineHeight: '1.5',
+                                    marginBottom: '1.5rem',
+                                    flex: 1,
+                                    overflow: 'hidden',
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: '3',
+                                    WebkitBoxOrient: 'vertical'
+                                }}
+                                dangerouslySetInnerHTML={{ __html: item.content }} // Render HTML safe for preview
+                            />
 
                             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: 'auto' }}>
                                 <button
@@ -224,7 +253,7 @@ const KnowledgeBaseManager = () => {
                                     style={{ padding: '8px', borderRadius: '8px', background: 'rgba(148, 163, 184, 0.1)', color: '#94a3b8', border: 'none', cursor: 'pointer' }}
                                     title="عرض (بحث داخل المقال)"
                                 >
-                                    <BookOpen size={16} /> {/* Using BookOpen as Eye/Preview alternative or just import Eye */}
+                                    <BookOpen size={16} />
                                 </button>
                                 <button
                                     onClick={() => handleOpenEdit(item)}
@@ -271,23 +300,16 @@ const KnowledgeBaseManager = () => {
                         />
                     </div>
 
-                    {/* Content */}
+                    {/* Content - Jodit Editor */}
                     <div>
                         <label style={{ display: 'block', marginBottom: '0.5rem', color: '#cbd5e1', fontSize: '0.9rem' }}>التفاصيل والشرح</label>
-                        <textarea
-                            value={formData.content}
-                            onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                            placeholder="اكتب التفاصيل هنا..."
-                            rows={8}
-                            style={{
-                                width: '100%', padding: '0.75rem',
-                                background: 'rgba(15, 23, 42, 0.3)',
-                                border: '1px solid rgba(148, 163, 184, 0.2)',
-                                borderRadius: '10px', color: 'white',
-                                resize: 'vertical',
-                                lineHeight: '1.6'
-                            }}
-                        />
+                        <div style={{ background: 'white', borderRadius: '10px', overflow: 'hidden', color: 'black' }}>
+                            <JoditEditor
+                                value={formData.content}
+                                config={config}
+                                onBlur={newContent => setFormData({ ...formData, content: newContent })}
+                            />
+                        </div>
                     </div>
 
                     {/* Image */}
@@ -452,8 +474,8 @@ const KnowledgeBaseManager = () => {
                                 {previewItem.title}
                             </h1>
 
-                            {/* Inner Search */}
-                            <div style={{ marginBottom: '1rem', position: 'relative' }}>
+                            {/* Inner Search is removed for HTML Content cleanliness due to complexity of highlighting HTML */}
+                            <div style={{ display: 'none', marginBottom: '1rem', position: 'relative' }}>
                                 <input
                                     type="text"
                                     placeholder="بحث داخل المقال..."
@@ -468,9 +490,11 @@ const KnowledgeBaseManager = () => {
                                 <Search size={18} color="#94a3b8" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }} />
                             </div>
 
-                            <div style={{ color: '#e2e8f0', lineHeight: '1.7', fontSize: '1rem', whiteSpace: 'pre-wrap' }}>
-                                {highlightText(previewItem.content, innerSearchTerm)}
-                            </div>
+                            <div
+                                className="jodit-wysiwyg" // Use Jodit class for styling
+                                style={{ color: '#e2e8f0', lineHeight: '1.7', fontSize: '1rem' }}
+                                dangerouslySetInnerHTML={{ __html: previewItem.content }}
+                            />
                         </div>
                     </div>
                 </div>
