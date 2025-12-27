@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ChevronLeft, ChevronRight, X, BookOpen, ArrowLeft, Maximize2, ZoomIn, ZoomOut } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, X, BookOpen, ArrowLeft, Maximize2, ZoomIn, ZoomOut, ChevronUp, ChevronDown } from 'lucide-react';
 import { DataManager } from '../../../shared/utils/DataManager';
 
 const KnowledgeBaseView = ({ onClose }) => {
@@ -15,6 +15,7 @@ const KnowledgeBaseView = ({ onClose }) => {
 
     // Low-level Search State
     const [innerSearchTerm, setInnerSearchTerm] = useState('');
+    const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
 
     const handleMouseMove = (e) => {
         const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
@@ -42,25 +43,57 @@ const KnowledgeBaseView = ({ onClose }) => {
         return tmp.textContent || tmp.innerText || "";
     };
 
-    // Highlight Helper for HTML Content
-    // Highlight Helper for HTML Content
-    const highlightHtml = (htmlContent, keyword) => {
-        if (!keyword.trim() || !htmlContent) return htmlContent;
+    // Reset index on search change
+    useEffect(() => {
+        setCurrentMatchIndex(0);
+    }, [innerSearchTerm]);
 
-        // Escape special characters in keyword to avoid regex errors
-        const escapeRegExp = (string) => {
-            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        };
-        const escapedKeyword = escapeRegExp(keyword.trim());
+    // Computed content with highlights
+    const { highlightedContent, matchCount } = React.useMemo(() => {
+        if (!selectedItem || !innerSearchTerm.trim()) {
+            return {
+                highlightedContent: selectedItem?.content || '',
+                matchCount: 0
+            };
+        }
 
-        // Match HTML tags OR the keyword. Prioritize matching tags (and ignoring them).
-        // Using explicit RegExp constructor to avoid literal parsing issues in some environments
+        let count = 0;
+        const keyword = innerSearchTerm.trim();
+        const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const escapedKeyword = escapeRegExp(keyword);
         const regex = new RegExp(`(<[^>]+>)|(${escapedKeyword})`, 'gi');
 
-        return htmlContent.replace(regex, (match, tag, text) => {
-            if (tag) return tag; // Return HTML tags unchanged
-            return `<mark style="background-color: #fde047; color: black; border-radius: 4px; padding: 0 2px;">${match}</mark>`;
+        const content = selectedItem.content.replace(regex, (match, tag, text) => {
+            if (tag) return tag;
+            count++;
+            const isCurrent = count === currentMatchIndex + 1;
+            return `<mark id="match-${count}" style="background-color: ${isCurrent ? '#f97316' : '#fde047'}; color: ${isCurrent ? 'white' : 'black'}; border-radius: 2px; padding: 0 2px; display: inline-block;">${match}</mark>`;
         });
+
+        return { highlightedContent: content, matchCount: count };
+    }, [selectedItem, innerSearchTerm, currentMatchIndex]);
+
+    // Scrolling effect
+    useEffect(() => {
+        if (matchCount > 0) {
+            // Small timeout to ensure DOM render before scrolling
+            setTimeout(() => {
+                const el = document.getElementById(`match-${currentMatchIndex + 1}`);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+                }
+            }, 100);
+        }
+    }, [currentMatchIndex, matchCount]);
+
+    const handleNext = () => {
+        if (matchCount === 0) return;
+        setCurrentMatchIndex((prev) => (prev + 1) % matchCount);
+    };
+
+    const handlePrev = () => {
+        if (matchCount === 0) return;
+        setCurrentMatchIndex((prev) => (prev - 1 + matchCount) % matchCount);
     };
 
     // Reset inner search when item changes
@@ -445,23 +478,59 @@ const KnowledgeBaseView = ({ onClose }) => {
                             </h1>
 
                             {/* Inner Search */}
-                            <div style={{ marginBottom: '2rem', position: 'relative' }}>
-                                <input
-                                    type="text"
-                                    placeholder="بحث في محتوى المقال..."
-                                    value={innerSearchTerm}
-                                    onChange={(e) => setInnerSearchTerm(e.target.value)}
-                                    style={{
-                                        width: '100%', padding: '0.875rem 3rem 0.875rem 1rem',
-                                        borderRadius: '12px', border: '1px solid rgba(148, 163, 184, 0.2)',
-                                        background: 'rgba(15, 23, 42, 0.6)', color: 'white',
-                                        fontSize: '0.95rem',
-                                        transition: 'border-color 0.2s'
-                                    }}
-                                    onFocus={(e) => e.target.style.borderColor = '#60a5fa'}
-                                    onBlur={(e) => e.target.style.borderColor = 'rgba(148, 163, 184, 0.2)'}
-                                />
-                                <Search size={18} color="#94a3b8" style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)' }} />
+                            <div style={{ marginBottom: '2rem', position: 'relative', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                <div style={{ position: 'relative', flex: 1 }}>
+                                    <input
+                                        type="text"
+                                        placeholder="بحث في محتوى المقال..."
+                                        value={innerSearchTerm}
+                                        onChange={(e) => setInnerSearchTerm(e.target.value)}
+                                        style={{
+                                            width: '100%', padding: '0.875rem 3rem 0.875rem 1rem',
+                                            borderRadius: '12px', border: '1px solid rgba(148, 163, 184, 0.2)',
+                                            background: 'rgba(15, 23, 42, 0.6)', color: 'white',
+                                            fontSize: '0.95rem',
+                                            transition: 'border-color 0.2s'
+                                        }}
+                                        onFocus={(e) => e.target.style.borderColor = '#60a5fa'}
+                                        onBlur={(e) => e.target.style.borderColor = 'rgba(148, 163, 184, 0.2)'}
+                                    />
+                                    <Search size={18} color="#94a3b8" style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)' }} />
+                                </div>
+
+                                {/* Navigation & Counter */}
+                                {matchCount > 0 && (
+                                    <div style={{
+                                        display: 'flex', alignItems: 'center', gap: '4px',
+                                        background: 'rgba(30, 41, 59, 0.8)', padding: '4px 8px', borderRadius: '8px',
+                                        border: '1px solid rgba(148, 163, 184, 0.2)'
+                                    }}>
+                                        <span style={{ color: '#e2e8f0', fontSize: '0.9rem', margin: '0 8px', fontFamily: 'monospace' }}>
+                                            {currentMatchIndex + 1} / {matchCount}
+                                        </span>
+                                        <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.1)', margin: '0 4px' }} />
+                                        <button
+                                            onClick={handleNext}
+                                            style={{
+                                                background: 'transparent', border: 'none', color: '#94a3b8',
+                                                cursor: 'pointer', padding: '4px', display: 'flex'
+                                            }}
+                                            title="التالي"
+                                        >
+                                            <ChevronDown size={20} />
+                                        </button>
+                                        <button
+                                            onClick={handlePrev}
+                                            style={{
+                                                background: 'transparent', border: 'none', color: '#94a3b8',
+                                                cursor: 'pointer', padding: '4px', display: 'flex'
+                                            }}
+                                            title="السابق"
+                                        >
+                                            <ChevronUp size={20} />
+                                        </button>
+                                    </div>
+                                )}
                             </div>
 
                             <div
@@ -473,7 +542,7 @@ const KnowledgeBaseView = ({ onClose }) => {
                                     direction: 'rtl', // Enforce RTL
                                     textAlign: 'right' // Enforce Right Alignment
                                 }}
-                                dangerouslySetInnerHTML={{ __html: highlightHtml(selectedItem.content, innerSearchTerm) }}
+                                dangerouslySetInnerHTML={{ __html: highlightedContent }}
                             />
                         </div>
                     </div>

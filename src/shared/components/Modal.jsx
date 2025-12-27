@@ -13,8 +13,14 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
 
     if (!isOpen || !mounted) return null;
 
+    const handleOverlayClick = (e) => {
+        if (e.target === e.currentTarget) {
+            onClose();
+        }
+    };
+
     const modalContent = (
-        <div className={styles.overlay} onClick={onClose}>
+        <div className={styles.overlay} onClick={handleOverlayClick}>
             <div
                 className={`${styles.content} ${styles[size]}`}
                 onClick={e => e.stopPropagation()}

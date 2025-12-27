@@ -237,8 +237,9 @@ const KnowledgeBaseManager = () => {
                                     color: '#94a3b8',
                                     fontSize: '0.9rem',
                                     lineHeight: '1.5',
+                                    lineHeight: '1.5',
                                     marginBottom: '1.5rem',
-                                    flex: 1,
+                                    height: '4.5em', // Fixed height (~3 lines)
                                     overflow: 'hidden',
                                     display: '-webkit-box',
                                     WebkitLineClamp: '3',
@@ -366,6 +367,7 @@ const KnowledgeBaseManager = () => {
                                 <ImageIcon size={32} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
                                 <p style={{ fontSize: '0.9rem' }}>اضغط لاختيار صور</p>
                                 <p style={{ fontSize: '0.8rem', opacity: 0.7 }}>يمكنك اختيار عدة صور</p>
+                                <p style={{ fontSize: '0.75rem', color: '#fbbf24', marginTop: '6px' }}>المقاس الموصى به: 800×400 (عرض×ارتفاع)</p>
                             </div>
                         </div>
                     </div>
