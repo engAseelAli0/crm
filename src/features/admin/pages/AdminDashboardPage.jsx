@@ -38,7 +38,12 @@ import AgentPerformanceView from '../components/AgentPerformanceView';
 import CustomerTrackingView from '../components/CustomerTrackingView';
 import KnowledgeBaseManager from '../components/KnowledgeBaseManager';
 import ComplaintTypeConfig from '../components/ComplaintTypeConfig';
+// Import Agent Components for Admin usage
+import ComplaintSubmission from '../../agent/components/ComplaintSubmission';
+import ReminderView from '../../agent/components/ReminderView';
 import ComplaintList from '../components/ComplaintList';
+import PermissionsManager from '../components/PermissionsManager';
+import { NAVIGATION_CONFIG, getDefaultModulesForRole } from '../constants/navigationConfig';
 import { PERMISSIONS } from '../../../shared/constants/permissions';
 
 import { useToast } from '../../../shared/components/Toast';
@@ -49,6 +54,7 @@ const AdminDashboardPage = ({ user, onLogout }) => {
     const { t } = useLanguage();
     const toast = useToast();
     const [activeTab, setActiveTab] = useState('dashboard');
+    const [currentUser, setCurrentUser] = useState(user); // Local user state for live updates
     const [stats, setStats] = useState({
         totalCalls: 0,
         topCategory: '-',
@@ -96,7 +102,19 @@ const AdminDashboardPage = ({ user, onLogout }) => {
         setCalls(_calls);
         // Note: categories loaded via effect on categoryType change
         setCategories(await DataManager.getCategoriesByType(categoryType));
-        setUsers(await DataManager.getUsers());
+
+        const _users = await DataManager.getUsers();
+        setUsers(_users);
+
+        // Refresh Current User Data (Permissions)
+        // We find the user by ID from the fresh list
+        if (user && user.id) {
+            const freshUserData = _users.find(u => u.id === user.id);
+            if (freshUserData) {
+                console.log("Refreshed Permissions:", freshUserData.permissions);
+                setCurrentUser(freshUserData);
+            }
+        }
 
         // Calculate Stats
         const totalDuration = _calls.reduce((sum, call) => sum + (call.duration || 0), 0);
@@ -424,127 +442,59 @@ const AdminDashboardPage = ({ user, onLogout }) => {
                     </button>
 
                     {!sidebarCollapsed && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                            <div style={{
-                                width: '36px', height: '36px', borderRadius: '10px',
-                                background: 'linear-gradient(135deg, #667eea, #764ba2)',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center'
-                            }}>
-                                <Shield size={20} color="white" />
-                            </div>
-                            <span style={{ fontWeight: '700', fontSize: '1.1rem' }}>لوحة التحكم</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <img src="/src/assets/icon.png" alt="Tawasul" style={{ height: '40px', width: 'auto' }} />
+                            <span style={{ fontWeight: '700', fontSize: '1.1rem' }}>Tawasul</span>
                         </div>
                     )}
                 </div>
 
                 <nav className={styles.nav}>
-                    <SidebarItem
-                        icon={LayoutDashboard}
-                        label={t('sidebar.dashboard')}
-                        active={activeTab === 'dashboard'}
-                        onClick={() => setActiveTab('dashboard')}
-                        collapsed={sidebarCollapsed}
-                    />
-                    {user.role === 'ADMIN' && (
-                        <>
-                            <SidebarItem
-                                icon={FolderTree}
-                                label={t('sidebar.categories')}
-                                active={activeTab === 'categories'}
-                                onClick={() => setActiveTab('categories')}
-                                collapsed={sidebarCollapsed}
-                                badge={categories.length}
-                            />
-                            <SidebarItem
-                                icon={Users}
-                                label={t('sidebar.users')}
-                                active={activeTab === 'users'}
-                                onClick={() => setActiveTab('users')}
-                                collapsed={sidebarCollapsed}
-                                badge={users.filter(u => u.role === 'AGENT').length}
-                            />
-                            {/* Performance moved to shared permission block */}
-                            <SidebarItem
-                                icon={MapIcon}
-                                label={t('sidebar.tracking')}
-                                active={activeTab === 'tracking'}
-                                onClick={() => setActiveTab('tracking')}
-                                collapsed={sidebarCollapsed}
-                            />
-                            <SidebarItem
-                                icon={HelpCircle}
-                                label={t('sidebar.complaintsConfig')}
-                                active={activeTab === 'complaints_config'}
-                                onClick={() => setActiveTab('complaints_config')}
-                                collapsed={sidebarCollapsed}
-                            />
-                            {/* Complaints Manage moved to shared permissions block */}
-                            <SidebarItem
-                                icon={Settings}
-                                label={t('sidebar.settings')}
-                                active={activeTab === 'settings'}
-                                onClick={() => setActiveTab('settings')}
-                                collapsed={sidebarCollapsed}
-                            />
-                        </>
-                    )}
-                    {/* Reports & Performance Group */}
-                    {(user.role === 'ADMIN' || (user.permissions && user.permissions.includes(PERMISSIONS.VIEW_REPORTS))) && (
-                        <>
-                            <SidebarItem
-                                icon={BarChart3}
-                                label={t('sidebar.reports')}
-                                active={activeTab === 'reports'}
-                                onClick={() => setActiveTab('reports')}
-                                collapsed={sidebarCollapsed}
-                            />
-                            <SidebarItem
-                                icon={TrendingUp} // Moved Performance here for Evaluator/Supervisor access
-                                label={t('sidebar.performance')}
-                                active={activeTab === 'performance'}
-                                onClick={() => setActiveTab('performance')}
-                                collapsed={sidebarCollapsed}
-                            />
-                        </>
-                    )}
+                    {NAVIGATION_CONFIG.filter(module => {
+                        // Admin NO LONGER gets everything automatically. 
+                        // We rely on defaultAllowed or specific user permissions.
 
-                    {/* Complaints Management Group */}
-                    {(user.role === 'ADMIN' || (user.permissions && user.permissions.includes(PERMISSIONS.MANAGE_COMPLAINTS))) && (
+                        // Safest logic:
+                        const userPerms = currentUser.permissions || [];
+                        const defaultPerms = getDefaultModulesForRole(currentUser.role);
+
+                        // If user has NO permissions array, use defaults
+                        if (!currentUser.permissions || currentUser.permissions.length === 0) {
+                            return defaultPerms.includes(module.id);
+                        }
+
+                        // Check match
+                        if (Array.isArray(userPerms)) {
+                            return userPerms.includes(module.id);
+                        }
+                        return false;
+                    }).map(module => (
                         <SidebarItem
-                            icon={FileText}
-                            label={t('sidebar.complaintsManage')}
-                            active={activeTab === 'complaints_manage'}
-                            onClick={() => setActiveTab('complaints_manage')}
+                            key={module.id}
+                            icon={module.icon}
+                            label={t(module.label) === module.label ? module.fallbackLabel : t(module.label)} // Fallback if translation missing
+                            active={activeTab === module.id}
+                            onClick={() => setActiveTab(module.id)}
                             collapsed={sidebarCollapsed}
+                            // Special badge logic or generic?
+                            badge={module.id === 'categories' ? categories.length :
+                                module.id === 'users' && user.role === 'ADMIN' ? users.filter(u => u.role === 'AGENT').length : null}
                         />
-                    )}
+                    ))}
 
-                    {/* Guide - Accessible to Admin, Supervisor, Evaluator (Anyone with Reports access usually implies knowledge access, or we default to showing it) */}
-                    {/* Actually, user said Evaluator/Supervisor only see specific things. Let's keep Guide for Admin & anyone with View Reports? Or just Admin? */}
-                    {/* User didn't explicitly restrict Guide for them, but said "ONLY". I will hide Guide for non-admins if not specified. Wait, Agents have it separately. */}
-                    {/* Let's assume Guide is for everyone or just Admin for editing? This is AdminDashboard. Guide in Admin is "KnowledgeBaseManager" (Editing). */}
-                    {/* Editing should be ADMIN ONLY or maybe Supervisor? User said "Supervisor... Incoming Complaints View ONLY". So likely NO Guide Edit access. */}
 
-                    {user.role === 'ADMIN' && (
-                        <SidebarItem
-                            icon={BookOpen}
-                            label={t('sidebar.guide')}
-                            active={activeTab === 'guide'}
-                            onClick={() => setActiveTab('guide')}
-                            collapsed={sidebarCollapsed}
-                        />
-                    )}
                 </nav>
 
                 <div className={styles.userSection} style={{ justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }}>
-                    <UserAvatar user={user} size={sidebarCollapsed ? 40 : 44} />
+                    <UserAvatar user={currentUser} size={sidebarCollapsed ? 40 : 44} />
 
                     {!sidebarCollapsed && (
                         <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>{user.name}</div>
+                            <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>{currentUser.name}</div>
                             <div style={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.5)' }}>مدير النظام</div>
                         </div>
                     )}
+
 
                     <button
                         onClick={onLogout}
@@ -944,13 +894,23 @@ const AdminDashboardPage = ({ user, onLogout }) => {
                                 padding: '1.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
                                 display: 'flex', justifyContent: 'space-between', alignItems: 'center'
                             }}>
-                                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
                                     <div className={`${styles.callStatus} ${styles.statusOther}`}>
-                                        {filteredUsers.length} موظف
+                                        {filteredUsers.length} الكلي
                                     </div>
-                                    <div className={`${styles.callStatus} ${styles.statusSuccess}`}>
-                                        {filteredUsers.filter(u => u.role === 'AGENT').length} موظف خدمة
-                                    </div>
+                                    {Object.entries(filteredUsers.reduce((acc, user) => {
+                                        const roleName = user.role === 'ADMIN' ? 'مدير' :
+                                            user.role === 'AGENT' ? 'خدمة عملاء' :
+                                                user.role === 'SUPERVISOR' ? 'مشرف' :
+                                                    user.role === 'EVALUATOR' ? 'مقيم' :
+                                                        user.role === 'COMPLAINT_OFFICER' ? 'موظف شكاوى' : user.role;
+                                        acc[roleName] = (acc[roleName] || 0) + 1;
+                                        return acc;
+                                    }, {})).map(([role, count]) => (
+                                        <div key={role} className={`${styles.callStatus} ${styles.statusSuccess}`} style={{ background: 'rgba(255, 255, 255, 0.05)', borderColor: 'rgba(255, 255, 255, 0.1)', color: '#cbd5e1' }}>
+                                            {count} {role}
+                                        </div>
+                                    ))}
                                 </div>
                                 <button
                                     className={`${styles.actionBtn} ${styles.btnGreen}`}
@@ -988,7 +948,26 @@ const AdminDashboardPage = ({ user, onLogout }) => {
                     </div>
                 )}
 
+                {/* Permissions Tab */}
+                {activeTab === 'permissions' && currentUser.role === 'ADMIN' && (
+                    <div style={{ animation: 'fadeIn 0.5s ease-out', height: 'calc(100vh - 140px)' }}>
+                        <PermissionsManager />
+                    </div>
+                )}
 
+                {/* Complaint Submission Tab (For Admin/Agent) */}
+                {activeTab === 'complaint_submission' && (
+                    <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
+                        <ComplaintSubmission user={currentUser} />
+                    </div>
+                )}
+
+                {/* Reminders Tab (For Admin/Agent) */}
+                {activeTab === 'reminders' && (
+                    <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
+                        <ReminderView user={currentUser} onReminderAdded={() => { }} />
+                    </div>
+                )}
 
             </main>
 

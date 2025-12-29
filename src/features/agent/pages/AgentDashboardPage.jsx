@@ -27,6 +27,7 @@ import { BookOpen } from 'lucide-react';
 import ReportsView from '../../admin/components/ReportsView';
 import AgentPerformanceView from '../../admin/components/AgentPerformanceView';
 import { PERMISSIONS } from '../../../shared/constants/permissions';
+import { NAVIGATION_CONFIG, getDefaultModulesForRole } from '../../admin/constants/navigationConfig';
 
 import { useToast } from '../../../shared/components/Toast';
 import styles from './AgentDashboardPage.module.css';
@@ -40,12 +41,21 @@ const AgentDashboardPage = ({ user, onLogout }) => {
     const canSubmitComplaints = user.permissions?.includes(PERMISSIONS.SUBMIT_COMPLAINTS);
     const hasCallPermission = !user.permissions || canHandleCalls;
 
-    // Default tab logic: calls -> dashboard, reports -> reports, complaints -> complaints
+    // Dynamic Default Tab Logic
     const [activeTab, setActiveTab] = useState(() => {
-        if (hasCallPermission) return 'dashboard';
-        if (canViewReports) return 'reports';
-        if (canSubmitComplaints) return 'complaints';
-        return 'guide';
+        const userPerms = user.permissions || [];
+        const defaultPerms = getDefaultModulesForRole(user.role);
+
+        let allowed = [];
+        if (!user.permissions || user.permissions.length === 0) {
+            allowed = defaultPerms;
+        } else if (Array.isArray(userPerms)) {
+            allowed = userPerms;
+        }
+
+        // Find matches in config to preserve order
+        const firstAllowed = NAVIGATION_CONFIG.find(m => allowed.includes(m.id));
+        return firstAllowed ? firstAllowed.id : 'dashboard';
     });
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -176,9 +186,13 @@ const AgentDashboardPage = ({ user, onLogout }) => {
     // UI State
 
 
+
+    // UI State
     useEffect(() => {
         loadData();
     }, [user.id]);
+
+    const [currentUser, setCurrentUser] = useState(user);
 
     const loadData = async () => {
         try {
@@ -198,6 +212,10 @@ const AgentDashboardPage = ({ user, onLogout }) => {
             setActions(acts || []);
             setAccountTypes(accTypes || []);
             setUsersForReports(_users || []);
+
+            // Refresh Permissions
+            const freshUser = _users.find(u => u.id === user.id);
+            if (freshUser) setCurrentUser(freshUser);
 
             // Filter for current user
             const userCalls = _calls.filter(c => c.agentId === user.id || c.agent_id === user.id);
@@ -383,8 +401,16 @@ const AgentDashboardPage = ({ user, onLogout }) => {
                     color: '#818cf8', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 'bold', fontSize: '1.2rem'
                 }}>
 
-                    {!sidebarCollapsed && <ShieldCheck size={24} />}
-                    <span>{sidebarCollapsed ? 'CP' : 'CallPro'}</span>
+                    {!sidebarCollapsed ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <img src="/src/assets/icon.png" alt="Tawasul" style={{ height: '35px', width: 'auto' }} />
+                            <span>{sidebarCollapsed ? 'TW' : 'Tawasul'}</span>
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+                            <img src="/src/assets/icon.png" alt="Tawasul Icon" style={{ height: '30px', width: 'auto', borderRadius: '50%' }} />
+                        </div>
+                    )}
 
                     <button
                         onClick={toggleSidebar}
@@ -419,46 +445,25 @@ const AgentDashboardPage = ({ user, onLogout }) => {
                 )}
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0 1rem' }}>
-                    {hasCallPermission && (
-                        <>
-                            <SidebarItem icon={LayoutDashboard} label={t('sidebar.dashboard')} active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} collapsed={sidebarCollapsed} />
-                            <SidebarItem icon={PhoneCall} label={t('sidebar.calls')} active={activeTab === 'calls'} onClick={() => setActiveTab('calls')} collapsed={sidebarCollapsed} />
-                            <SidebarItem icon={Users} label={t('sidebar.customers')} active={activeTab === 'customers'} onClick={() => setActiveTab('customers')} collapsed={sidebarCollapsed} />
-                            <SidebarItem icon={BarChart3} label={t('sidebar.stats')} active={activeTab === 'stats'} onClick={() => setActiveTab('stats')} collapsed={sidebarCollapsed} />
-                        </>
-                    )}
+                    {NAVIGATION_CONFIG.filter(module => {
+                        const userPerms = currentUser.permissions || [];
+                        const defaultPerms = getDefaultModulesForRole(currentUser.role);
 
-                    {(hasCallPermission || canSubmitComplaints) && (
+                        if (!currentUser.permissions || currentUser.permissions.length === 0) {
+                            return defaultPerms.includes(module.id);
+                        }
+
+                        return Array.isArray(userPerms) && userPerms.includes(module.id);
+                    }).map(module => (
                         <SidebarItem
-                            icon={FileText}
-                            label={t('sidebar.complaintSubmission')}
-                            active={activeTab === 'complaints'}
-                            onClick={() => setActiveTab('complaints')}
+                            key={module.id}
+                            icon={module.icon}
+                            label={t(module.label) === module.label ? module.fallbackLabel : t(module.label)}
+                            active={activeTab === module.id}
+                            onClick={() => setActiveTab(module.id)}
                             collapsed={sidebarCollapsed}
                         />
-                    )}
-
-                    {canViewReports && (
-                        <>
-                            <SidebarItem icon={FileText} label={t('sidebar.reports')} active={activeTab === 'reports'} onClick={() => setActiveTab('reports')} collapsed={sidebarCollapsed} />
-                            <SidebarItem icon={Users} label={t('sidebar.performance')} active={activeTab === 'performance'} onClick={() => setActiveTab('performance')} collapsed={sidebarCollapsed} />
-                        </>
-                    )}
-
-                    <SidebarItem
-                        icon={BookOpen}
-                        label={t('sidebar.guide')}
-                        active={activeTab === 'guide'}
-                        onClick={() => setActiveTab('guide')}
-                        collapsed={sidebarCollapsed}
-                    />
-                    <SidebarItem
-                        icon={Clock}
-                        label="ذكرني"
-                        active={activeTab === 'reminders'}
-                        onClick={() => setActiveTab('reminders')}
-                        collapsed={sidebarCollapsed}
-                    />
+                    ))}
                 </div>
 
                 {!sidebarCollapsed && hasCallPermission && (
@@ -501,7 +506,7 @@ const AgentDashboardPage = ({ user, onLogout }) => {
                 <header className={styles.header}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '1.1rem' }}>
                         <span style={{ fontWeight: 'bold', color: '#e2e8f0' }}>{t(`common.${greeting}`)}،</span>
-                        <span style={{ color: '#fbbf24', fontWeight: 'bold' }}>{user.name}</span>
+                        <span style={{ color: '#fbbf24', fontWeight: 'bold' }}>{currentUser.name}</span>
                         <div style={{
                             padding: '4px 12px', background: 'rgba(16, 185, 129, 0.1)',
                             border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '20px',
@@ -676,7 +681,7 @@ const AgentDashboardPage = ({ user, onLogout }) => {
                             onTerminate={handleTerminateCall}
                             onViewDetails={setViewCallDetails}
                             onCallUpdate={(updates) => setActiveCall(prev => ({ ...prev, ...updates }))}
-                            user={user}
+                            user={currentUser}
                         />
                     ) : (
                         activeTab === 'dashboard' ? (
@@ -711,12 +716,16 @@ const AgentDashboardPage = ({ user, onLogout }) => {
                             <div style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
                                 صفحة العملاء - قريباً
                             </div>
-                        ) : activeTab === 'complaints' ? (
-                            <ComplaintSubmission user={user} />
+                        ) : activeTab === 'complaint_submission' ? (
+                            <ComplaintSubmission user={currentUser} />
                         ) : activeTab === 'guide' ? (
                             <KnowledgeBaseView onClose={() => setActiveTab('dashboard')} />
                         ) : activeTab === 'reminders' ? (
-                            <ReminderView user={user} onReminderAdded={syncReminders} />
+                            <ReminderView user={currentUser} onReminderAdded={syncReminders} />
+                        ) : activeTab === 'agent_stats' ? (
+                            <div style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
+                                صفحة الإحصائيات - قريباً
+                            </div>
                         ) : (
                             <div style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
                                 قريباً...

@@ -3,6 +3,7 @@ import { User as UserIcon, Lock, Shield } from 'lucide-react';
 import PermissionSelector from './PermissionSelector'; // Kept if needed, but unused now
 import { ROLES, PERMISSION_LABELS } from '../../../shared/constants/permissions';
 import { useLanguage } from '../../../shared/context/LanguageContext';
+import { getDefaultModulesForRole, NAVIGATION_CONFIG } from '../constants/navigationConfig';
 
 // Using inline styles for simplicity in form, or could extract. 
 // Given it's a simple form, I'll keep it self-contained but clean.
@@ -112,11 +113,12 @@ const UserForm = ({ initialData, onChange, onSubmit, onCancel }) => {
                         value={form.role}
                         onChange={e => {
                             const newRole = e.target.value;
-                            const roleDef = ROLES[newRole];
+                            // Set permissions to the default MODULE IDs for this role
+                            const defaultModules = getDefaultModulesForRole(newRole);
                             setForm({
                                 ...form,
                                 role: newRole,
-                                permissions: roleDef ? roleDef.permissions : []
+                                permissions: defaultModules
                             });
                         }}
                     >
@@ -129,13 +131,18 @@ const UserForm = ({ initialData, onChange, onSubmit, onCancel }) => {
                 </div>
             </div>
 
-            {form.role && ROLES[form.role] && (
+            {form.permissions && form.permissions.length > 0 && (
                 <div style={{ fontSize: '0.85rem', color: '#94a3b8', background: 'rgba(255,255,255,0.05)', padding: '1rem', borderRadius: '8px' }}>
-                    <strong style={{ display: 'block', marginBottom: '0.5rem', color: '#e2e8f0' }}>{t('users.permissionsGiven')}:</strong>
-                    <ul style={{ listStyle: 'disc', paddingRight: '1.5rem', margin: 0 }}>
-                        {ROLES[form.role].permissions.map(p => (
-                            <li key={p}>{PERMISSION_LABELS[p] || p}</li>
-                        ))}
+                    <strong style={{ display: 'block', marginBottom: '0.5rem', color: '#e2e8f0' }}>الواجهات المتاحة لهذا الدور:</strong>
+                    <ul style={{ listStyle: 'disc', paddingRight: '1.5rem', margin: 0, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                        {form.permissions.map(moduleId => {
+                            const moduleConfig = NAVIGATION_CONFIG.find(m => m.id === moduleId);
+                            return (
+                                <li key={moduleId}>
+                                    {moduleConfig ? (moduleConfig.fallbackLabel || moduleConfig.label) : moduleId}
+                                </li>
+                            );
+                        })}
                     </ul>
                 </div>
             )}

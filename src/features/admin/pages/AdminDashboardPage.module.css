@@ -1,6 +1,9 @@
 .container {
     display: flex;
-    min-height: 100vh;
+    height: 100vh;
+    /* Fixed height */
+    overflow: hidden;
+    /* Prevent window scroll */
     background: var(--bg-gradient);
     color: var(--text-primary);
     font-family: 'Cairo',
@@ -17,16 +20,21 @@
     transition: all 0.3s ease;
     display: flex;
     flex-direction: column;
-    position: relative;
     z-index: 50;
+    overflow-y: auto;
+    /* Independent scroll */
+    height: 100%;
 }
 
 .sidebarExpanded {
     width: 280px;
+    flex-shrink: 0;
+    /* Prevent shrinking */
 }
 
 .sidebarCollapsed {
     width: 80px;
+    flex-shrink: 0;
 }
 
 .logoSection {
@@ -34,6 +42,8 @@
     align-items: center;
     gap: 1rem;
     margin-bottom: 2rem;
+    flex-shrink: 0;
+    /* Keep logo fixed at top of sidebar scroll or part of flow? Part of flow is fine. */
 }
 
 .menuBtn {
@@ -63,12 +73,15 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    flex-shrink: 0;
 }
 
 .main {
     flex: 1;
     padding: 2rem;
     overflow-y: auto;
+    /* Independent scroll */
+    height: 100%;
     /* Background handled by container */
 }
 

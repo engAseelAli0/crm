@@ -533,6 +533,19 @@ const KnowledgeBaseView = ({ onClose }) => {
                                 )}
                             </div>
 
+                            <style>{`
+                                .jodit-wysiwyg img {
+                                    width: 100% !important;
+                                    height: auto !important;
+                                    display: block !important;
+                                    margin: 1rem auto !important;
+                                    border-radius: 8px;
+                                    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                                }
+                                .jodit-wysiwyg table {
+                                    width: 100% !important;
+                                }
+                            `}</style>
                             <div
                                 className="jodit-wysiwyg"
                                 style={{

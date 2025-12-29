@@ -130,9 +130,7 @@ const LoginPage = ({ onLogin }) => {
                     <div className={styles.content}>
                         {/* Header */}
                         <div className={styles.logoContainer}>
-                            <div className={styles.logoIcon}>
-                                <Shield size={40} color="white" strokeWidth={1.5} />
-                            </div>
+                            <img src="/src/assets/icon.png" alt="Tawasul Logo" className={styles.logoImage} style={{ width: '120px', height: '120px', borderRadius: '90%', objectFit: 'cover' }} />
                         </div>
 
                         <h1 className={styles.title}>
@@ -215,7 +213,7 @@ const LoginPage = ({ onLogin }) => {
 
                         {/* Footer */}
                         <div className={styles.footer}>
-                            <p>© {new Date().getFullYear()} نظام خدمة العملاء</p>
+                            <p>© {new Date().getFullYear()} Tawasul CRM</p>
                         </div>
                     </div>
                 </div>
