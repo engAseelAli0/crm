@@ -16,6 +16,7 @@ const ComplaintTypeConfig = () => {
     const [editingType, setEditingType] = useState(null);
     const [formData, setFormData] = useState({
         name: '',
+        instructions: '',
         fields: []
     });
 
@@ -40,12 +41,14 @@ const ComplaintTypeConfig = () => {
             setEditingType(type);
             setFormData({
                 name: type.name,
+                instructions: type.instructions || '',
                 fields: type.fields || []
             });
         } else {
             setEditingType(null);
             setFormData({
                 name: '',
+                instructions: '',
                 fields: []
             });
         }
@@ -93,12 +96,14 @@ const ComplaintTypeConfig = () => {
             if (editingType) {
                 await ComplaintManager.updateComplaintType(editingType.id, {
                     name: formData.name,
+                    instructions: formData.instructions,
                     fields: formData.fields
                 });
                 toast.success(t('common.success'), t('complaints.updateTypeSuccess'));
             } else {
                 await ComplaintManager.createComplaintType({
                     name: formData.name,
+                    instructions: formData.instructions,
                     fields: formData.fields
                 });
                 toast.success(t('common.success'), t('complaints.createTypeSuccess'));
@@ -224,6 +229,21 @@ const ComplaintTypeConfig = () => {
                                 placeholder={t('complaints.typeNamePlaceholder')}
                                 style={{
                                     width: '100%', padding: '0.75rem',
+                                    background: 'rgba(15, 23, 42, 0.5)',
+                                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                                    borderRadius: '8px', color: 'white'
+                                }}
+                            />
+                        </div>
+
+                        <div>
+                            <label style={{ display: 'block', marginBottom: '0.5rem', color: '#cbd5e1' }}>{t('complaints.instructions') || 'تعليمات/تلميحات للموظف'}</label>
+                            <textarea
+                                value={formData.instructions}
+                                onChange={(e) => setFormData(prev => ({ ...prev, instructions: e.target.value }))}
+                                placeholder={t('complaints.instructionsPlaceholder') || 'أضف تعليمات أو تلميحات ستظهر للموظف عند اختيار هذا النوع...'}
+                                style={{
+                                    width: '100%', padding: '0.75rem', minHeight: '80px',
                                     background: 'rgba(15, 23, 42, 0.5)',
                                     border: '1px solid rgba(255, 255, 255, 0.1)',
                                     borderRadius: '8px', color: 'white'

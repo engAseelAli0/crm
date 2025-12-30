@@ -141,6 +141,8 @@ export const translations = {
             suspensionDate: 'تاريخ التعليق',
             submitError: 'فشل رفع الشكوى',
             submitSuccess: 'تم رفع الشكوى بنجاح',
+            instructions: 'تعليمات/تلميحات للموظف',
+            instructionsPlaceholder: 'أضف تعليمات أو تلميحات ستظهر للموظف عند اختيار هذا النوع...',
             fieldTypes: {
                 text: 'نص',
                 number: 'رقم',
@@ -288,6 +290,8 @@ export const translations = {
             deleteTypeConfirm: 'Are you sure you want to delete this type? This will affect complaints linked to it.',
             typeName: 'Complaint Type Name',
             typeNamePlaceholder: 'e.g. Internet Issue, Financial Complaint...',
+            instructions: 'Instructions/Hints for Agent',
+            instructionsPlaceholder: 'Add instructions or hints to be shown to the agent when selecting this type...',
             fieldTypes: {
                 text: 'Text',
                 number: 'Number',

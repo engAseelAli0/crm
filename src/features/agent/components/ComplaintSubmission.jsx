@@ -365,6 +365,28 @@ const ComplaintSubmission = ({ user }) => {
                             </select>
                         </div>
 
+                        {/* Instructions/Hints for Agent */}
+                        {activeTypeConfig && activeTypeConfig.instructions && (
+                            <div style={{
+                                marginBottom: '2rem',
+                                padding: '1rem',
+                                background: 'rgba(59, 130, 246, 0.1)',
+                                borderRight: '4px solid #3b82f6',
+                                borderRadius: '4px',
+                                display: 'flex', gap: '1rem', alignItems: 'flex-start'
+                            }}>
+                                <AlertCircle size={20} color="#3b82f6" style={{ marginTop: '2px', flexShrink: 0 }} />
+                                <div>
+                                    <h4 style={{ color: '#60a5fa', fontWeight: 'bold', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
+                                        {t('complaints.instructions') || 'تلميحات/تعليمات:'}
+                                    </h4>
+                                    <p style={{ color: '#e2e8f0', fontSize: '0.95rem', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+                                        {activeTypeConfig.instructions}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Dynamic Fields */}
                         {activeTypeConfig && activeTypeConfig.fields && activeTypeConfig.fields.length > 0 && (
                             <div style={{
