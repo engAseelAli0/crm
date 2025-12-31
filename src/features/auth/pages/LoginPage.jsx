@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Lock, LogIn, Eye, EyeOff, Smartphone, Shield, Sparkles, AlertTriangle } from 'lucide-react';
+import { User, Lock, LogIn, Eye, EyeOff, Smartphone, Shield, Sparkles, AlertTriangle, Headset } from 'lucide-react';
 import { DataManager } from '../../../shared/utils/DataManager'; // Assuming DataManager will be moved later or path adjusted
 import styles from './LoginPage.module.css';
 
@@ -68,7 +68,7 @@ const LoginPage = ({ onLogin }) => {
             const user = await DataManager.login(username, password);
             if (user) {
                 // Visual success effect
-                document.querySelector(`.${styles.loginContainer}`).classList.add(styles.successAnimation);
+                document.querySelector(`.${styles.loginContainer} `).classList.add(styles.successAnimation);
 
                 // Handle Remember Me
                 if (rememberMe) {
@@ -81,7 +81,7 @@ const LoginPage = ({ onLogin }) => {
             } else {
                 setError('اسم المستخدم أو كلمة المرور غير صحيحة');
                 // Shake effect on error
-                const form = document.querySelector(`.${styles.loginForm}`);
+                const form = document.querySelector(`.${styles.loginForm} `);
                 if (form) {
                     form.classList.add(styles.shakeAnimation);
                     setTimeout(() => {
@@ -105,19 +105,19 @@ const LoginPage = ({ onLogin }) => {
         <div className={styles.loginContainer}>
             {/* Premium Nebula Background */}
             <div className={styles.nebulaContainer}>
-                <div className={`${styles.orb} ${styles.orb1}`} />
-                <div className={`${styles.orb} ${styles.orb2}`} />
-                <div className={`${styles.orb} ${styles.orb3}`} />
+                <div className={`${styles.orb} ${styles.orb1} `} />
+                <div className={`${styles.orb} ${styles.orb2} `} />
+                <div className={`${styles.orb} ${styles.orb3} `} />
             </div>
 
             {/* Particles (Overlay) */}
             <div className={styles.particlesContainer}>
                 {particles.map(p => (
                     <div key={p.id} className={styles.particle} style={{
-                        left: `${p.x}%`,
-                        top: `${p.y}%`,
-                        width: `${p.size}px`,
-                        height: `${p.size}px`,
+                        left: `${p.x}% `,
+                        top: `${p.y}% `,
+                        width: `${p.size} px`,
+                        height: `${p.size} px`,
                         opacity: Math.random() * 0.5
                     }} />
                 ))}
@@ -130,7 +130,7 @@ const LoginPage = ({ onLogin }) => {
                     <div className={styles.content}>
                         {/* Header */}
                         <div className={styles.logoContainer}>
-                            <img src="/src/assets/icon.png" alt="Tawasul Logo" className={styles.logoImage} style={{ width: '120px', height: '120px', borderRadius: '90%', objectFit: 'cover' }} />
+                            <Headset size={80} color="#3b82f6" strokeWidth={1.5} style={{ filter: 'drop-shadow(0 4px 6px rgba(59, 130, 246, 0.3))' }} />
                         </div>
 
                         <h1 className={styles.title}>
@@ -161,7 +161,7 @@ const LoginPage = ({ onLogin }) => {
                                     <input
                                         type={showPassword ? "text" : "password"}
                                         placeholder="كلمة المرور"
-                                        className={`${styles.input} ${styles.passwordInput}`}
+                                        className={`${styles.input} ${styles.passwordInput} `}
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         dir="rtl"

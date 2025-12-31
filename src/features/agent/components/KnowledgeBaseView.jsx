@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { Search, ChevronLeft, ChevronRight, X, BookOpen, ArrowLeft, Maximize2, ZoomIn, ZoomOut, ChevronUp, ChevronDown } from 'lucide-react';
 import { DataManager } from '../../../shared/utils/DataManager';
 
@@ -311,14 +312,14 @@ const KnowledgeBaseView = ({ onClose }) => {
                 )}
             </div>
 
-            {/* Reading Modal */}
-            {selectedItem && (
+            {/* Reading Modal - In Portal */}
+            {selectedItem && ReactDOM.createPortal(
                 <div style={{
                     position: 'fixed',
                     top: 0, left: 0, right: 0, bottom: 0,
                     background: 'rgba(0,0,0,0.8)',
                     backdropFilter: 'blur(5px)',
-                    zIndex: 20000,
+                    zIndex: 99999, // Now this will truly be top-level
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -330,8 +331,8 @@ const KnowledgeBaseView = ({ onClose }) => {
                         style={{
                             background: '#1e293b',
                             width: '100%',
-                            maxWidth: '900px', // Increased width for better layout
-                            maxHeight: '90vh',  // Increased height
+                            maxWidth: '900px',
+                            maxHeight: '90vh',
                             borderRadius: '24px',
                             overflowY: 'auto',
                             position: 'relative',
@@ -373,7 +374,7 @@ const KnowledgeBaseView = ({ onClose }) => {
                                     style={{
                                         position: 'relative',
                                         width: '100%',
-                                        height: '350px', // Slightly larger image area
+                                        height: '350px',
                                         flexShrink: 0,
                                         background: '#0f172a',
                                         display: 'flex',
@@ -468,16 +469,16 @@ const KnowledgeBaseView = ({ onClose }) => {
                                 fontSize: '1.8rem',
                                 fontWeight: '800',
                                 marginBottom: '2rem',
-                                color: '#f8fafc', // Whiter text for better contrast
+                                color: '#f8fafc',
                                 lineHeight: '1.4',
-                                textAlign: 'right', // Enforce RTL alignment for title
+                                textAlign: 'right',
                                 borderBottom: '1px solid rgba(148, 163, 184, 0.2)',
                                 paddingBottom: '1.5rem'
                             }}>
                                 {selectedItem.title}
                             </h1>
 
-                            {/* Inner Search */}
+                            {/* Inner Search code preserved... */}
                             <div style={{ marginBottom: '2rem', position: 'relative', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                                 <div style={{ position: 'relative', flex: 1 }}>
                                     <input
@@ -498,7 +499,6 @@ const KnowledgeBaseView = ({ onClose }) => {
                                     <Search size={18} color="#94a3b8" style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)' }} />
                                 </div>
 
-                                {/* Navigation & Counter */}
                                 {matchCount > 0 && (
                                     <div style={{
                                         display: 'flex', alignItems: 'center', gap: '4px',
@@ -509,58 +509,32 @@ const KnowledgeBaseView = ({ onClose }) => {
                                             {currentMatchIndex + 1} / {matchCount}
                                         </span>
                                         <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.1)', margin: '0 4px' }} />
-                                        <button
-                                            onClick={handleNext}
-                                            style={{
-                                                background: 'transparent', border: 'none', color: '#94a3b8',
-                                                cursor: 'pointer', padding: '4px', display: 'flex'
-                                            }}
-                                            title="التالي"
-                                        >
-                                            <ChevronDown size={20} />
-                                        </button>
-                                        <button
-                                            onClick={handlePrev}
-                                            style={{
-                                                background: 'transparent', border: 'none', color: '#94a3b8',
-                                                cursor: 'pointer', padding: '4px', display: 'flex'
-                                            }}
-                                            title="السابق"
-                                        >
-                                            <ChevronUp size={20} />
-                                        </button>
+                                        <button onClick={handleNext} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px', display: 'flex' }}><ChevronDown size={20} /></button>
+                                        <button onClick={handlePrev} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px', display: 'flex' }}><ChevronUp size={20} /></button>
                                     </div>
                                 )}
                             </div>
 
                             <style>{`
-                                .jodit-wysiwyg img {
-                                    width: 100% !important;
-                                    height: auto !important;
-                                    display: block !important;
-                                    margin: 1rem auto !important;
-                                    border-radius: 8px;
-                                    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-                                }
-                                .jodit-wysiwyg table {
-                                    width: 100% !important;
-                                }
+                                .jodit-wysiwyg img { width: 100% !important; height: auto !important; display: block !important; margin: 1rem auto !important; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+                                .jodit-wysiwyg table { width: 100% !important; }
                             `}</style>
                             <div
                                 className="jodit-wysiwyg"
                                 style={{
                                     color: '#e2e8f0',
-                                    lineHeight: '1.8', // Increased line height for readability
-                                    fontSize: '1.05rem', // Slightly larger text
-                                    direction: 'rtl', // Enforce RTL
-                                    textAlign: 'right' // Enforce Right Alignment
+                                    lineHeight: '1.8',
+                                    fontSize: '1.05rem',
+                                    direction: 'rtl',
+                                    textAlign: 'right'
                                 }}
                                 dangerouslySetInnerHTML={{ __html: highlightedContent }}
                             />
                         </div>
                     </div>
-                </div>
-            )
+                </div>,
+                document.body
+            )}
             }
 
         </div >

@@ -8,8 +8,9 @@ import {
     Phone, PhoneCall, Clock, MoreVertical, Star, Award, PieChart,
     Target, MessageSquare, BookOpen, HelpCircle, MapPin, List, FileText,
     FileSpreadsheet, File as FilePdf, CheckSquare, Square, Filter as FilterIcon, Map as MapIcon,
-    Layers, Zap
+    Layers, Zap, Headset
 } from 'lucide-react';
+import { supabase } from '../../../lib/supabase';
 
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -88,7 +89,40 @@ const AdminDashboardPage = ({ user, onLogout }) => {
 
     useEffect(() => {
         refreshData();
-    }, []);
+
+        // 1. Request Notification Permission
+        if (Notification.permission !== 'granted') {
+            Notification.requestPermission();
+        }
+
+        // 2. Realtime Listener for New Complaints (Admin/Supervisor Only)
+        // Check if user is Admin or Supervisor
+        if (['ADMIN', 'SUPERVISOR', 'MANAGER'].includes(user.role)) {
+            const subscription = supabase
+                .channel('admin-complaints-channel')
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'complaints' }, (payload) => {
+                    console.log('New Complaint Received:', payload);
+
+                    // Trigger Browser Notification
+                    if (Notification.permission === 'granted') {
+                        const newComplaint = payload.new;
+                        new Notification('شكوى جديدة', {
+                            body: `تم رفع شكوى من قبل الموظف للعميل: ${newComplaint.customer_name || 'غير معروف'}\nرقم الهاتف: ${newComplaint.customer_number || '-'}`,
+                            icon: '/favicons/favicon-192x192.png', // Fallback or use a valid path if known
+                            tag: 'new-complaint' // Prevents duplicate notifications stacking too much
+                        });
+                    }
+
+                    // Refresh Dashboard Data
+                    refreshData();
+                })
+                .subscribe();
+
+            return () => {
+                supabase.removeChannel(subscription);
+            };
+        }
+    }, [user.role]); // Re-run if role changes (unlikely but safe)
 
     useEffect(() => {
         const loadCategories = async () => {
@@ -441,10 +475,14 @@ const AdminDashboardPage = ({ user, onLogout }) => {
                         <Menu size={20} />
                     </button>
 
-                    {!sidebarCollapsed && (
+                    {!sidebarCollapsed ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <img src="/src/assets/icon.png" alt="Tawasul" style={{ height: '40px', width: 'auto' }} />
-                            <span style={{ fontWeight: '700', fontSize: '1.1rem' }}>Tawasul</span>
+                            <Headset size={32} color="#3b82f6" />
+                            <span style={{ fontWeight: '700', fontSize: '1.2rem', background: 'linear-gradient(to right, #fff, #94a3b8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Tawasul</span>
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+                            <Headset size={28} color="#3b82f6" />
                         </div>
                     )}
                 </div>

@@ -78,7 +78,7 @@ export const ComplaintManager = {
     /**
      * Fetch all complaints (for Admin)
      */
-    getAllComplaints: async () => {
+    getAllComplaints: async (limit = 1000) => {
         const { data, error } = await supabase
             .from('complaints')
             .select(`
@@ -87,7 +87,8 @@ export const ComplaintManager = {
         agent:users!agent_id (name),
         resolver:users!resolved_by (name)
       `)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .limit(limit);
 
         if (error) {
             console.error('Error fetching complaints:', error);
@@ -128,7 +129,7 @@ export const ComplaintManager = {
      * Fetch complaints submitted by a specific agent
      * @param {string} agentId 
      */
-    getAgentComplaints: async (agentId) => {
+    getAgentComplaints: async (agentId, limit = 500) => {
         const { data, error } = await supabase
             .from('complaints')
             .select(`
@@ -138,7 +139,8 @@ export const ComplaintManager = {
         resolver:users!resolved_by (name)
       `)
             .eq('agent_id', agentId)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .limit(limit);
 
         if (error) {
             console.error('Error fetching agent complaints:', error);

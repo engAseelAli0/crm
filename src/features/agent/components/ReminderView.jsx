@@ -32,7 +32,12 @@ const ReminderView = ({ user, onReminderAdded }) => {
     const loadReminders = async () => {
         setIsLoading(true);
         const status = activeTab === 'active' ? 'pending' : 'resolved';
-        const data = await DataManager.getReminders(user.id, status);
+
+        // Admins and Managers see ALL reminders
+        const isManager = ['ADMIN', 'SUPERVISOR', 'MANAGER'].includes(user.role);
+        const targetAgentId = isManager ? null : user.id;
+
+        const data = await DataManager.getReminders(targetAgentId, status);
         setReminders(data);
         setIsLoading(false);
     };
@@ -303,6 +308,15 @@ const ReminderView = ({ user, onReminderAdded }) => {
                                                     {reminder.duration_hours} {reminder.duration_unit === 'minutes' ? 'دقيقة' : 'ساعة'}
                                                 </span>
                                             </div>
+
+                                            {/* Show Agent Name if available (for Admins) */}
+                                            {reminder.agentName && (
+                                                <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                    <span style={{ opacity: 0.7 }}>بواسطة:</span>
+                                                    <span style={{ color: '#94a3b8', fontWeight: '600' }}>{reminder.agentName}</span>
+                                                </div>
+                                            )}
+
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#94a3b8', fontSize: '0.95rem' }}>
                                                 <FileText size={14} />
                                                 {reminder.reason}

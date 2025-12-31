@@ -198,11 +198,12 @@ export const DataManager = {
   },
 
   // --- Calls ---
-  getCalls: async () => {
+  getCalls: async (limit = 2000) => {
     const { data, error } = await supabase
       .from('calls')
       .select('*')
-      .order('timestamp', { ascending: false });
+      .order('timestamp', { ascending: false })
+      .limit(limit);
 
     if (error) {
       console.error('Supabase getCalls error:', error);
@@ -456,16 +457,27 @@ export const DataManager = {
     return data;
   },
 
-  getReminders: async (agentId, status = 'pending') => {
-    const { data, error } = await supabase
+  getReminders: async (agentId = null, status = 'pending') => {
+    let query = supabase
       .from('reminders')
-      .select('*')
-      .eq('agent_id', agentId)
+      .select('*, users (name)') // Fetch agent name. Assumes FK exists.
       .eq('status', status)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(500);
+
+    if (agentId) {
+      query = query.eq('agent_id', agentId);
+    }
+
+    const { data, error } = await query;
 
     if (error) console.error('Error fetching reminders:', error);
-    return data || [];
+
+    // Map data to flatten user name if needed, or UI can access users.name
+    return (data || []).map(item => ({
+      ...item,
+      agentName: item.users?.name || 'Unknown'
+    }));
   },
 
   resolveReminder: async (id) => {

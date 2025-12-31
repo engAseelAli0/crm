@@ -370,14 +370,14 @@ const ComplaintSubmission = ({ user }) => {
                             <div style={{
                                 marginBottom: '2rem',
                                 padding: '1rem',
-                                background: 'rgba(59, 130, 246, 0.1)',
-                                borderRight: '4px solid #3b82f6',
+                                background: 'rgba(239, 68, 68, 0.1)',
+                                borderRight: '4px solid #ef4444',
                                 borderRadius: '4px',
                                 display: 'flex', gap: '1rem', alignItems: 'flex-start'
                             }}>
-                                <AlertCircle size={20} color="#3b82f6" style={{ marginTop: '2px', flexShrink: 0 }} />
+                                <AlertCircle size={20} color="#ef4444" style={{ marginTop: '2px', flexShrink: 0 }} />
                                 <div>
-                                    <h4 style={{ color: '#60a5fa', fontWeight: 'bold', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
+                                    <h4 style={{ color: '#f87171', fontWeight: 'bold', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
                                         {t('complaints.instructions') || 'تلميحات/تعليمات:'}
                                     </h4>
                                     <p style={{ color: '#e2e8f0', fontSize: '0.95rem', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
@@ -566,7 +566,8 @@ const ComplaintSubmission = ({ user }) => {
                                     <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8' }}>تاريخ الإغلاق</th>
                                     <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8' }}>بواسطة</th>
                                     <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8' }}>المدة</th>
-                                    <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8' }}>{t('complaints.actions')}</th>
+                                    <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8' }}>الحالة</th>
+                                    <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8' }}>الإجراءات</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -616,7 +617,8 @@ const ComplaintSubmission = ({ user }) => {
                                                     padding: '4px 10px', borderRadius: '12px',
                                                     background: `${getStatusColor(complaint.status)}20`,
                                                     color: getStatusColor(complaint.status),
-                                                    fontSize: '0.8rem', fontWeight: '600'
+                                                    fontSize: '0.8rem', fontWeight: '600',
+                                                    whiteSpace: 'nowrap', display: 'inline-block'
                                                 }}>
                                                     {getStatusLabel(complaint.status)}
                                                 </span>
@@ -627,14 +629,15 @@ const ComplaintSubmission = ({ user }) => {
                                                 )}
                                             </td>
                                             <td style={{ padding: '1rem', textAlign: 'center' }}>
-                                                <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', flexWrap: 'nowrap' }}>
                                                     {/* Details Button */}
                                                     <button
                                                         onClick={() => { setSelectedComplaint(complaint); setIsDetailsOpen(true); }}
                                                         style={{
-                                                            padding: '6px', borderRadius: '4px',
+                                                            width: '32px', height: '32px', padding: 0, borderRadius: '6px',
                                                             background: 'rgba(255,255,255,0.05)', border: 'none',
-                                                            color: '#cbd5e1', cursor: 'pointer'
+                                                            color: '#cbd5e1', cursor: 'pointer',
+                                                            display: 'flex', alignItems: 'center', justifyContent: 'center'
                                                         }}
                                                         title="التفاصيل"
                                                     >
@@ -645,9 +648,10 @@ const ComplaintSubmission = ({ user }) => {
                                                     <button
                                                         onClick={() => handleShare(complaint)}
                                                         style={{
-                                                            padding: '6px', borderRadius: '4px',
+                                                            width: '32px', height: '32px', padding: 0, borderRadius: '6px',
                                                             background: 'rgba(59, 130, 246, 0.1)', border: 'none',
-                                                            color: '#3b82f6', cursor: 'pointer'
+                                                            color: '#3b82f6', cursor: 'pointer',
+                                                            display: 'flex', alignItems: 'center', justifyContent: 'center'
                                                         }}
                                                         title="نسخ للمشاركة"
                                                     >
@@ -666,9 +670,10 @@ const ComplaintSubmission = ({ user }) => {
                                                                 }
                                                             }}
                                                             style={{
-                                                                padding: '6px', borderRadius: '4px',
+                                                                width: '32px', height: '32px', padding: 0, borderRadius: '6px',
                                                                 background: 'rgba(234, 179, 8, 0.1)', border: 'none',
-                                                                color: '#eab308', cursor: 'pointer'
+                                                                color: '#eab308', cursor: 'pointer',
+                                                                display: 'flex', alignItems: 'center', justifyContent: 'center'
                                                             }}
                                                             title="تذكير الإدارة"
                                                         >
@@ -690,9 +695,10 @@ const ComplaintSubmission = ({ user }) => {
                                                                     } catch (e) { toast.error('خطأ', 'فشل التحديث'); }
                                                                 }}
                                                                 style={{
-                                                                    padding: '6px', borderRadius: '4px',
+                                                                    width: '32px', height: '32px', padding: 0, borderRadius: '6px',
                                                                     background: 'rgba(255,255,255,0.05)', border: 'none',
-                                                                    color: '#94a3b8', cursor: 'pointer'
+                                                                    color: '#94a3b8', cursor: 'pointer',
+                                                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
                                                                 }}
                                                                 title="إعادة فتح"
                                                             >
@@ -706,9 +712,10 @@ const ComplaintSubmission = ({ user }) => {
                                                                     setIsClosureModalOpen(true);
                                                                 }}
                                                                 style={{
-                                                                    padding: '6px', borderRadius: '4px',
+                                                                    width: '32px', height: '32px', padding: 0, borderRadius: '6px',
                                                                     background: 'rgba(16, 185, 129, 0.1)', border: 'none',
-                                                                    color: '#10b981', cursor: 'pointer'
+                                                                    color: '#10b981', cursor: 'pointer',
+                                                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
                                                                 }}
                                                                 title="إغلاق (نجاح)"
                                                             >

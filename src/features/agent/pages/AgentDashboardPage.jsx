@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
-    LayoutDashboard, PhoneCall, Users, BarChart3, FileText, Settings,
-    LogOut, UserCheck, HelpCircle, Bell, Clock, Activity, CheckCircle,
-    Smartphone, Phone, ShieldCheck, ArrowLeft
+    LayoutDashboard, Phone, Users, FileText, Settings, LogOut, Bell, Search, Menu, X,
+    ChevronLeft, ChevronRight, BarChart2, MessageSquare, ShieldCheck, Clock, CheckCircle,
+    AlertCircle, Play, Mic, Square, Save, RotateCcw, Share2, BookOpen, Headset, ArrowLeft,
+    UserCheck, HelpCircle
 } from 'lucide-react';
 
 import { DataManager } from '../../../shared/utils/DataManager';
@@ -22,7 +23,7 @@ import CallDetailsModal from '../../admin/components/CallDetailsModal';
 import ComplaintSubmission from '../components/ComplaintSubmission';
 import KnowledgeBaseView from '../components/KnowledgeBaseView';
 import ReminderView from '../components/ReminderView';
-import { BookOpen } from 'lucide-react';
+
 
 import ReportsView from '../../admin/components/ReportsView';
 import AgentPerformanceView from '../../admin/components/AgentPerformanceView';
@@ -53,9 +54,26 @@ const AgentDashboardPage = ({ user, onLogout }) => {
             allowed = userPerms;
         }
 
-        // Find matches in config to preserve order
-        const firstAllowed = NAVIGATION_CONFIG.find(m => allowed.includes(m.id));
-        return firstAllowed ? firstAllowed.id : 'dashboard';
+        // Sort allowed modules by priority
+        const priority = ['complaint_submission', 'reminders', 'guide'];
+
+        // Filter config to get only allowed modules, then sort them
+        const allowedModules = NAVIGATION_CONFIG.filter(m => allowed.includes(m.id));
+
+        const sortedModules = allowedModules.sort((a, b) => {
+            const aIdx = priority.indexOf(a.id);
+            const bIdx = priority.indexOf(b.id);
+
+            if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+            // If one is in priority list and other isn't, priority one comes first
+            if (aIdx !== -1) return -1;
+            if (bIdx !== -1) return 1;
+
+            // Fallback to original config order (index in NAVIGATION_CONFIG)
+            return NAVIGATION_CONFIG.indexOf(a) - NAVIGATION_CONFIG.indexOf(b);
+        });
+
+        return sortedModules.length > 0 ? sortedModules[0].id : 'dashboard';
     });
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -403,12 +421,12 @@ const AgentDashboardPage = ({ user, onLogout }) => {
 
                     {!sidebarCollapsed ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <img src="/src/assets/icon.png" alt="Tawasul" style={{ height: '35px', width: 'auto' }} />
-                            <span>{sidebarCollapsed ? 'TW' : 'Tawasul'}</span>
+                            <Headset size={32} color="#3b82f6" />
+                            <span style={{ fontWeight: '700', fontSize: '1.2rem', color: 'white' }}>Tawasul CRM</span>
                         </div>
                     ) : (
                         <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
-                            <img src="/src/assets/icon.png" alt="Tawasul Icon" style={{ height: '30px', width: 'auto', borderRadius: '50%' }} />
+                            <Headset size={24} color="#3b82f6" />
                         </div>
                     )}
 
@@ -427,22 +445,24 @@ const AgentDashboardPage = ({ user, onLogout }) => {
                     </button>
                 </div>
 
-                {sidebarCollapsed && (
-                    <button
-                        onClick={toggleSidebar}
-                        style={{
-                            margin: '0 auto 1rem',
-                            background: 'rgba(99, 102, 241, 0.1)',
-                            border: '1px solid rgba(99, 102, 241, 0.3)',
-                            borderRadius: '8px',
-                            width: '32px', height: '32px',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            color: '#818cf8', cursor: 'pointer'
-                        }}
-                    >
-                        <ArrowLeft size={16} style={{ transform: 'rotate(180deg)' }} />
-                    </button>
-                )}
+                {
+                    sidebarCollapsed && (
+                        <button
+                            onClick={toggleSidebar}
+                            style={{
+                                margin: '0 auto 1rem',
+                                background: 'rgba(99, 102, 241, 0.1)',
+                                border: '1px solid rgba(99, 102, 241, 0.3)',
+                                borderRadius: '8px',
+                                width: '32px', height: '32px',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                color: '#818cf8', cursor: 'pointer'
+                            }}
+                        >
+                            <ArrowLeft size={16} style={{ transform: 'rotate(180deg)' }} />
+                        </button>
+                    )
+                }
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0 1rem' }}>
                     {NAVIGATION_CONFIG.filter(module => {
@@ -454,6 +474,17 @@ const AgentDashboardPage = ({ user, onLogout }) => {
                         }
 
                         return Array.isArray(userPerms) && userPerms.includes(module.id);
+                    }).sort((a, b) => {
+                        // Custom Priority for Agents/Complaint Officers
+                        const priority = ['complaint_submission', 'reminders', 'guide'];
+                        const aIdx = priority.indexOf(a.id);
+                        const bIdx = priority.indexOf(b.id);
+
+                        if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+                        if (aIdx !== -1) return -1;
+                        if (bIdx !== -1) return 1;
+
+                        return 0; // Keep original order for others
                     }).map(module => (
                         <SidebarItem
                             key={module.id}
@@ -466,40 +497,42 @@ const AgentDashboardPage = ({ user, onLogout }) => {
                     ))}
                 </div>
 
-                {!sidebarCollapsed && hasCallPermission && (
-                    <div style={{
-                        marginTop: '2rem',
-                        padding: '1rem',
-                        background: 'rgba(30, 41, 59, 0.5)',
-                        borderRadius: '12px',
-                        border: '1px solid rgba(99, 102, 241, 0.2)',
-                        width: 'calc(100% - 2rem)',
-                        alignSelf: 'center'
-                    }}>
-                        <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '0.75rem', fontWeight: '600' }}>
-                            {t('sidebar.quickActions')}
+                {
+                    !sidebarCollapsed && hasCallPermission && (
+                        <div style={{
+                            marginTop: '2rem',
+                            padding: '1rem',
+                            background: 'rgba(30, 41, 59, 0.5)',
+                            borderRadius: '12px',
+                            border: '1px solid rgba(99, 102, 241, 0.2)',
+                            width: 'calc(100% - 2rem)',
+                            alignSelf: 'center'
+                        }}>
+                            <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '0.75rem', fontWeight: '600' }}>
+                                {t('sidebar.quickActions')}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                <button
+                                    onClick={handleSimulateCall}
+                                    style={{ padding: '0.6rem', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '8px', color: '#34d399', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}
+                                >
+                                    <Smartphone size={16} /> {t('sidebar.simulateCall')}
+                                </button>
+                                <button
+                                    onClick={handleManualCall}
+                                    style={{ padding: '0.6rem', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)', borderRadius: '8px', color: '#60a5fa', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}
+                                >
+                                    <Phone size={16} /> {t('sidebar.manualCall')}
+                                </button>
+                            </div>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            <button
-                                onClick={handleSimulateCall}
-                                style={{ padding: '0.6rem', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '8px', color: '#34d399', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}
-                            >
-                                <Smartphone size={16} /> {t('sidebar.simulateCall')}
-                            </button>
-                            <button
-                                onClick={handleManualCall}
-                                style={{ padding: '0.6rem', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)', borderRadius: '8px', color: '#60a5fa', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}
-                            >
-                                <Phone size={16} /> {t('sidebar.manualCall')}
-                            </button>
-                        </div>
-                    </div>
-                )}
+                    )
+                }
 
                 <div style={{ marginTop: 'auto', padding: '1rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                     <SidebarItem icon={LogOut} label={t('common.logout')} onClick={onLogout} collapsed={sidebarCollapsed} />
                 </div>
-            </aside>
+            </aside >
 
             {/* Main */}
             < main className={styles.main} >

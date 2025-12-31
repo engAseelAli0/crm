@@ -77,7 +77,7 @@ export const NAVIGATION_CONFIG = [
         label: 'sidebar.tracking',
         fallbackLabel: 'تتبع العملاء',
         icon: MapIcon,
-        defaultAllowed: ['ADMIN', 'SUPERVISOR']
+        defaultAllowed: ['ADMIN']
     },
     {
         id: 'reports',
@@ -98,7 +98,7 @@ export const NAVIGATION_CONFIG = [
         label: 'sidebar.reminders',
         fallbackLabel: 'التذكيرات',
         icon: Clock,
-        defaultAllowed: ['AGENT', 'COMPLAINT_OFFICER', 'ADMIN']
+        defaultAllowed: ['AGENT', 'COMPLAINT_OFFICER', 'ADMIN', 'SUPERVISOR']
     },
     {
         id: 'settings',
