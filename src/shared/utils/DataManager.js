@@ -518,5 +518,68 @@ export const DataManager = {
 
     if (error) console.error('Error marking reminder read:', error);
     return data;
+  },
+
+  // --- Service Points (POS/Agents) ---
+  getServicePoints: async (filters = {}) => {
+    let query = supabase
+      .from('service_points')
+      .select('*, governorate:locations!governorate_id(name), district:locations!district_id(name)')
+      .order('created_at', { ascending: false });
+
+    if (filters.governorate_id) query = query.eq('governorate_id', filters.governorate_id);
+    if (filters.district_id) query = query.eq('district_id', filters.district_id);
+    if (filters.type) query = query.eq('type', filters.type); // 'POS' or 'Agent'
+
+    const { data, error } = await query;
+    if (error) {
+      console.error('Error fetching service points:', error);
+      return [];
+    }
+    return data || [];
+  },
+
+  addServicePoint: async (point) => {
+    const { data, error } = await supabase
+      .from('service_points')
+      .insert([point])
+      .select()
+      .single();
+
+    if (error) console.error('Error adding service point:', error);
+    return data;
+  },
+
+  updateServicePoint: async (id, updates) => {
+    const { error } = await supabase
+      .from('service_points')
+      .update(updates)
+      .eq('id', id);
+
+    if (error) console.error('Error updating service point:', error);
+    return error;
+  },
+
+  deleteServicePoint: async (id) => {
+    const { error } = await supabase
+      .from('service_points')
+      .delete()
+      .eq('id', id);
+
+    if (error) console.error('Error deleting service point:', error);
+    return error;
+  },
+
+  bulkAddServicePoints: async (points) => {
+    // Determine chunks to avoid payload limits if massive
+    const chunkSize = 100;
+    let errors = [];
+    for (let i = 0; i < points.length; i += chunkSize) {
+      const chunk = points.slice(i, i + chunkSize);
+      const { error } = await supabase.from('service_points').insert(chunk);
+      if (error) errors.push(error);
+    }
+    if (errors.length > 0) console.error('Bulk add errors:', errors);
+    return errors.length === 0;
   }
 };

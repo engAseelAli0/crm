@@ -3,16 +3,21 @@ import {
     FolderTree,
     Users,
     Map as MapIcon,
+    Map,
     HelpCircle,
     Settings,
-    BarChart3,
-    TrendingUp,
+    BarChart2,
     FileText,
+    Bell,
     BookOpen,
+    ShieldCheck,
+    MapPin,
     PhoneCall,
     Clock,
     Activity,
-    Shield
+    Shield,
+    TrendingUp,
+    BarChart3
 } from 'lucide-react';
 
 export const NAVIGATION_CONFIG = [
@@ -97,8 +102,8 @@ export const NAVIGATION_CONFIG = [
         id: 'reminders',
         label: 'sidebar.reminders',
         fallbackLabel: 'التذكيرات',
-        icon: Clock,
-        defaultAllowed: ['AGENT', 'COMPLAINT_OFFICER', 'ADMIN', 'SUPERVISOR']
+        icon: Bell, // Assuming Bell is the intended icon as 'Clock' is not imported
+        defaultAllowed: ['AGENT', 'COMPLAINT_OFFICER', 'ADMIN', 'SUPERVISOR', 'service_points']
     },
     {
         id: 'settings',
@@ -106,6 +111,13 @@ export const NAVIGATION_CONFIG = [
         fallbackLabel: 'الإعدادات',
         icon: Settings,
         defaultAllowed: ['ADMIN']
+    },
+    {
+        id: 'service_points',
+        label: 'sidebar.service_points',
+        fallbackLabel: 'نقاط الخدمة',
+        icon: MapPin,
+        defaultAllowed: ['ADMIN', 'SUPERVISOR', 'AGENT']
     },
     // Agent Specific (Keep at end or interleave if user wants?)
     // User didn't specify order for these, so end is safe.

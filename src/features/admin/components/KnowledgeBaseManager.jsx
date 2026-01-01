@@ -237,7 +237,6 @@ const KnowledgeBaseManager = () => {
                                     color: '#94a3b8',
                                     fontSize: '0.9rem',
                                     lineHeight: '1.5',
-                                    lineHeight: '1.5',
                                     marginBottom: '1.5rem',
                                     height: '4.5em', // Fixed height (~3 lines)
                                     overflow: 'hidden',

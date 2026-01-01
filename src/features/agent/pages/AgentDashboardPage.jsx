@@ -25,6 +25,7 @@ import KnowledgeBaseView from '../components/KnowledgeBaseView';
 import ReminderView from '../components/ReminderView';
 
 
+import ServicePointFinder from '../components/ServicePointFinder';
 import ReportsView from '../../admin/components/ReportsView';
 import AgentPerformanceView from '../../admin/components/AgentPerformanceView';
 import { PERMISSIONS } from '../../../shared/constants/permissions';
@@ -759,6 +760,8 @@ const AgentDashboardPage = ({ user, onLogout }) => {
                             <div style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
                                 صفحة الإحصائيات - قريباً
                             </div>
+                        ) : activeTab === 'service_points' ? (
+                            <ServicePointFinder />
                         ) : (
                             <div style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
                                 قريباً...

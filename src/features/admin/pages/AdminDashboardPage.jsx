@@ -39,6 +39,7 @@ import AgentPerformanceView from '../components/AgentPerformanceView';
 import CustomerTrackingView from '../components/CustomerTrackingView';
 import KnowledgeBaseManager from '../components/KnowledgeBaseManager';
 import ComplaintTypeConfig from '../components/ComplaintTypeConfig';
+import ServicePointsManager from '../components/ServicePointsManager';
 // Import Agent Components for Admin usage
 import ComplaintSubmission from '../../agent/components/ComplaintSubmission';
 import ReminderView from '../../agent/components/ReminderView';
@@ -402,7 +403,17 @@ const AdminDashboardPage = ({ user, onLogout }) => {
     const filteredUsers = users.filter(u =>
         u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         u.username.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    ).sort((a, b) => {
+        const rolePriority = {
+            'ADMIN': 1,
+            'SUPERVISOR': 2,
+            'COMPLAINT_OFFICER': 3,
+            'AGENT': 4
+        };
+        const p1 = rolePriority[a.role] || 99;
+        const p2 = rolePriority[b.role] || 99;
+        return p1 - p2;
+    });
 
     // Chart Data Preparation
     const prepareChartData = () => {
@@ -516,7 +527,7 @@ const AdminDashboardPage = ({ user, onLogout }) => {
                             collapsed={sidebarCollapsed}
                             // Special badge logic or generic?
                             badge={module.id === 'categories' ? categories.length :
-                                module.id === 'users' && user.role === 'ADMIN' ? users.filter(u => u.role === 'AGENT').length : null}
+                                module.id === 'users' ? users.length : null}
                         />
                     ))}
 
@@ -990,6 +1001,13 @@ const AdminDashboardPage = ({ user, onLogout }) => {
                 {activeTab === 'permissions' && currentUser.role === 'ADMIN' && (
                     <div style={{ animation: 'fadeIn 0.5s ease-out', height: 'calc(100vh - 140px)' }}>
                         <PermissionsManager />
+                    </div>
+                )}
+
+                {/* Service Points */}
+                {activeTab === 'service_points' && (
+                    <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
+                        <ServicePointsManager />
                     </div>
                 )}
 

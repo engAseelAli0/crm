@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     Search, Filter, CheckCircle, XCircle, Clock,
-    AlertTriangle, MoreVertical, Eye, FileText, PauseCircle, PlayCircle, User, Hash, Bell, Download
+    AlertTriangle, MoreVertical, Eye, FileText, PauseCircle, PlayCircle, User, Hash, Bell, Download, Share2
 } from 'lucide-react';
 import { ComplaintManager } from '../../../shared/utils/ComplaintManager';
 import Modal from '../../../shared/components/Modal';
@@ -250,6 +250,38 @@ const ComplaintList = ({ user }) => {
         setIsDetailsOpen(true);
     };
 
+    const handleShare = async (complaint) => {
+        try {
+            const lines = [];
+
+            lines.push(`*${t('complaints.customerName')}:* ${complaint.customer_name}`);
+            lines.push(`*${t('complaints.customerPhone')}:* ${complaint.customer_number}`);
+            lines.push(`*${t('complaints.type')}:* ${complaint.type?.name || '-'}`);
+
+            // Dynamic Fields
+            if (complaint.form_data) {
+                Object.entries(complaint.form_data).forEach(([key, value]) => {
+                    if (key === 'notes' || !value) return;
+                    const fieldDef = complaint.type?.fields?.find(f => f.id.toString() === key.toString());
+                    const label = fieldDef ? fieldDef.label : t('complaints.details');
+                    lines.push(`*${label}:* ${value}`);
+                });
+            }
+
+            if (complaint.notes) {
+                lines.push(`*${t('complaints.notes')}:* ${complaint.notes}`);
+            }
+
+            const text = lines.join('\n');
+            await navigator.clipboard.writeText(text);
+            toast.success(t('common.copied'), t('complaints.shareSuccess'));
+        } catch (err) {
+            console.error('Share error', err);
+            toast.error(t('common.error'), t('complaints.shareError'));
+        }
+    };
+
+
     return (
         <div style={{ padding: '1.5rem', color: '#e2e8f0', height: '100%', display: 'flex', flexDirection: 'column' }}>
             {/* ... (Header) */}
@@ -344,8 +376,9 @@ const ComplaintList = ({ user }) => {
                             <th style={{ padding: '1rem', textAlign: 'right', color: '#94a3b8', fontSize: '0.85rem' }}>{t('complaints.customerName')}</th>
                             <th style={{ padding: '1rem', textAlign: 'right', color: '#94a3b8', fontSize: '0.85rem' }}>{t('complaints.type')}</th>
                             <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>تاريخ الرفع</th>
+                            <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>الموظف (مقدم الطلب)</th>
                             <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>تاريخ الإغلاق</th>
-                            <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>بواسطة</th>
+                            <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>بواسطة (المغلق)</th>
                             <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>المدة</th>
                             <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>{t('complaints.status')}</th>
                             <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>{t('complaints.actions')}</th>
@@ -353,9 +386,9 @@ const ComplaintList = ({ user }) => {
                     </thead>
                     <tbody>
                         {isLoading ? (
-                            <tr><td colSpan="9" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>{t('common.loading')}</td></tr>
+                            <tr><td colSpan="10" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>{t('common.loading')}</td></tr>
                         ) : filteredComplaints.length === 0 ? (
-                            <tr><td colSpan="9" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>{t('complaints.noComplaintsFound') || t('common.search')}...</td></tr>
+                            <tr><td colSpan="10" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>{t('complaints.noComplaintsFound') || t('common.search')}...</td></tr>
                         ) : (
                             filteredComplaints.map(complaint => {
                                 // ... (Priority Logic same)
@@ -401,6 +434,9 @@ const ComplaintList = ({ user }) => {
                                                 {new Date(complaint.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
                                             </div>
                                         </td>
+                                        <td style={{ padding: '1rem', textAlign: 'center', color: '#6be7ff', fontWeight: '500' }}>
+                                            {complaint.agent?.name || 'Unknown'}
+                                        </td>
                                         <td style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem', direction: 'ltr' }}>
                                             {complaint.resolved_at ? (
                                                 <>
@@ -435,6 +471,13 @@ const ComplaintList = ({ user }) => {
                                                     title={t('complaints.details')}
                                                 >
                                                     <Eye size={16} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleShare(complaint)}
+                                                    style={{ padding: '6px', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.1)', border: 'none', color: '#3b82f6', cursor: 'pointer' }}
+                                                    title="نسخ للمشاركة"
+                                                >
+                                                    <Share2 size={16} />
                                                 </button>
                                                 {complaint.status === 'Pending' && (
                                                     <button

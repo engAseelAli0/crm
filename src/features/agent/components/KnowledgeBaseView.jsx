@@ -535,7 +535,6 @@ const KnowledgeBaseView = ({ onClose }) => {
                 </div>,
                 document.body
             )}
-            }
 
         </div >
     );
