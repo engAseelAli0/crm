@@ -19,7 +19,9 @@ const styles = {
         padding: '1rem',
         display: 'flex',
         flexDirection: 'column',
-        gap: '1rem'
+        gap: '1rem',
+        overflow: 'hidden',
+        maxHeight: '100%'
     },
     main: {
         background: 'var(--glass-bg)',
@@ -88,8 +90,22 @@ const PermissionsManager = () => {
 
     const loadUsers = async () => {
         const allUsers = await DataManager.getUsers();
-        // Filter out Super Admin if necessary, or keep all. Let's keep all but exclude current maybe?
-        setUsers(allUsers);
+
+        const sortedUsers = allUsers.sort((a, b) => {
+            const rolePriority = {
+                'ADMIN': 1,
+                'SUPERVISOR': 2,
+                'COMPLAINT_OFFICER': 3,
+                'AGENT': 4
+            };
+            const p1 = rolePriority[a.role] || 99;
+            const p2 = rolePriority[b.role] || 99; // Others like Evaluator get 99
+
+            if (p1 !== p2) return p1 - p2;
+            return a.name.localeCompare(b.name, 'ar');
+        });
+
+        setUsers(sortedUsers);
     };
 
     const handleUserSelect = (user) => {

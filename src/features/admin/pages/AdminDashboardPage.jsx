@@ -67,7 +67,7 @@ const AdminDashboardPage = ({ user, onLogout }) => {
     const [users, setUsers] = useState([]);
     const [calls, setCalls] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
-    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
     const [categoryType, setCategoryType] = useState('classification'); // classification, location, procedure, action
 
     // Modal State
@@ -87,6 +87,7 @@ const AdminDashboardPage = ({ user, onLogout }) => {
     const [statsDateFilter, setStatsDateFilter] = useState('');
     const [viewCallDetails, setViewCallDetails] = useState(null);
     const [selectedTimeRange, setSelectedTimeRange] = useState('today');
+    const [maintenanceEnabled, setMaintenanceEnabled] = useState(false);
 
     useEffect(() => {
         refreshData();
@@ -140,6 +141,18 @@ const AdminDashboardPage = ({ user, onLogout }) => {
 
         const _users = await DataManager.getUsers();
         setUsers(_users);
+
+        // Fetch Maintenance State
+        const { data: mSetting } = await supabase
+            .from('app_settings')
+            .select('value')
+            .eq('key', 'maintenance_mode')
+            .single();
+        if (mSetting?.value?.enabled) {
+            setMaintenanceEnabled(true);
+        } else {
+            setMaintenanceEnabled(false);
+        }
 
         // Refresh Current User Data (Permissions)
         // We find the user by ID from the fresh list
@@ -238,6 +251,29 @@ const AdminDashboardPage = ({ user, onLogout }) => {
         toast.success('تم الحذف', 'تم حذف التصنيف بنجاح');
         const _categories = await DataManager.getCategoriesByType(categoryType);
         setCategories(_categories);
+    };
+
+    const handleToggleMaintenance = async () => {
+        const newState = !maintenanceEnabled;
+        if (!window.confirm(newState
+            ? 'هل أنت متأكد من تفعيل وضع الصيانة؟ سيتم إغلاق الموقع أمام الجميع.'
+            : 'هل أنت متأكد من تعطيل وضع الصيانة؟ سيعود الموقع للعمل بشكل طبيعي.')) return;
+
+        try {
+            // Use RPC for secure toggle without DB User
+            const { error } = await supabase.rpc('set_maintenance_mode', {
+                is_enabled: newState,
+                secret_key: '774030066'
+            });
+
+            if (error) throw error;
+
+            setMaintenanceEnabled(newState);
+            toast.success('تم التحديث', newState ? 'تم تفعيل وضع الصيانة' : 'تم تعطيل وضع الصيانة');
+        } catch (e) {
+            console.error(e);
+            toast.error('خطأ', 'فشل تحديث الحالة (تأكد من تشغيل كود SQL)');
+        }
     };
 
     // DnD State
@@ -401,8 +437,9 @@ const AdminDashboardPage = ({ user, onLogout }) => {
 
     // Computed
     const filteredUsers = users.filter(u =>
-        u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        u.username.toLowerCase().includes(searchTerm.toLowerCase())
+        u.username !== 'AseelDev' && // Hide Developer Account
+        (u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            u.username.toLowerCase().includes(searchTerm.toLowerCase()))
     ).sort((a, b) => {
         const rolePriority = {
             'ADMIN': 1,
@@ -476,7 +513,11 @@ const AdminDashboardPage = ({ user, onLogout }) => {
     return (
         <div className={styles.container}>
             {/* Sidebar */}
-            <aside className={`${styles.sidebar} ${sidebarCollapsed ? styles.sidebarCollapsed : styles.sidebarExpanded}`}>
+            <aside
+                className={`${styles.sidebar} ${sidebarCollapsed ? styles.sidebarCollapsed : styles.sidebarExpanded}`}
+                onMouseEnter={() => setSidebarCollapsed(false)}
+                onMouseLeave={() => setSidebarCollapsed(true)}
+            >
                 <div className={styles.logoSection} style={{ justifyContent: sidebarCollapsed ? 'center' : 'flex-start' }}>
                     <button
                         onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -530,6 +571,21 @@ const AdminDashboardPage = ({ user, onLogout }) => {
                                 module.id === 'users' ? users.length : null}
                         />
                     ))}
+
+                    {/* Developer Options - AseelDev Only */}
+                    {currentUser?.username === 'AseelDev' && (
+                        <>
+                            <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '1rem 0' }}></div>
+                            <SidebarItem
+                                icon={Zap}
+                                label="إعدادات المطور"
+                                active={activeTab === 'dev_settings'}
+                                onClick={() => setActiveTab('dev_settings')}
+                                collapsed={sidebarCollapsed}
+                                badge="Dev"
+                            />
+                        </>
+                    )}
 
 
                 </nav>
@@ -934,6 +990,67 @@ const AdminDashboardPage = ({ user, onLogout }) => {
                     </div>
                 )}
 
+                {/* Developer Settings Tab */}
+                {activeTab === 'dev_settings' && currentUser?.username === 'AseelDev' && (
+                    <div style={{ animation: 'fadeIn 0.5s ease-out', padding: '2rem' }}>
+                        <div className={styles.glassPanel} style={{ padding: '2rem', maxWidth: '600px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
+                                <div style={{ padding: '1rem', background: 'rgba(139, 92, 246, 0.2)', borderRadius: '12px', color: '#a78bfa' }}>
+                                    <Zap size={32} />
+                                </div>
+                                <div>
+                                    <h2 style={{ margin: 0, fontSize: '1.5rem' }}>إعدادات المطور</h2>
+                                    <p style={{ margin: '4px 0 0 0', color: '#94a3b8' }}>تحكم كامل في حالة النظام</p>
+                                </div>
+                            </div>
+
+                            {/* Maintenance Toggle */}
+                            <div style={{
+                                background: 'rgba(0,0,0,0.2)', padding: '1.5rem', borderRadius: '16px',
+                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                border: '1px solid rgba(255,255,255,0.05)'
+                            }}>
+                                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                                    <div style={{ padding: '0.8rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '50%', color: '#3b82f6' }}>
+                                        <Shield size={24} />
+                                    </div>
+                                    <div>
+                                        <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#e2e8f0' }}>وضع الصيانة (Maintenance Mode)</h3>
+                                        <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '0.9rem' }}>
+                                            تفعيل هذا الخيار سيغلق الموقع أمام جميع المستخدمين ويعرض شاشة الصيانة.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <label style={{ position: 'relative', display: 'inline-block', width: '60px', height: '34px' }}>
+                                    <input
+                                        type="checkbox"
+                                        style={{ opacity: 0, width: 0, height: 0 }}
+                                        checked={maintenanceEnabled}
+                                        onChange={handleToggleMaintenance}
+                                    />
+                                    <span style={{
+                                        position: 'absolute', cursor: 'pointer',
+                                        top: 0, left: 0, right: 0, bottom: 0,
+                                        backgroundColor: maintenanceEnabled ? '#10b981' : '#475569',
+                                        borderRadius: '34px', transition: '0.4s'
+                                    }}>
+                                        <span style={{
+                                            position: 'absolute', content: '""',
+                                            height: '26px', width: '26px',
+                                            left: maintenanceEnabled ? '30px' : '4px',
+                                            bottom: '4px',
+                                            backgroundColor: 'white',
+                                            borderRadius: '50%',
+                                            transition: '0.4s'
+                                        }}></span>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
 
                 {/* Users Tab */}
                 {activeTab === 'users' && (
@@ -961,12 +1078,31 @@ const AdminDashboardPage = ({ user, onLogout }) => {
                                         </div>
                                     ))}
                                 </div>
-                                <button
-                                    className={`${styles.actionBtn} ${styles.btnGreen}`}
-                                    onClick={openAddUserModal}
-                                >
-                                    <Plus size={18} /> إضافة موظف جديد
-                                </button>
+
+                                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                                    <div style={{ position: 'relative' }}>
+                                        <Search size={18} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                                        <input
+                                            type="text"
+                                            placeholder="بحث عن موظف..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            style={{
+                                                padding: '0.6rem 2.5rem 0.6rem 1rem',
+                                                background: 'rgba(30, 41, 59, 0.5)',
+                                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                                borderRadius: '8px', color: 'white',
+                                                fontSize: '0.9rem', width: '250px'
+                                            }}
+                                        />
+                                    </div>
+                                    <button
+                                        className={`${styles.actionBtn} ${styles.btnGreen}`}
+                                        onClick={openAddUserModal}
+                                    >
+                                        <Plus size={18} /> إضافة موظف جديد
+                                    </button>
+                                </div>
                             </div>
 
                             <div className={styles.tableWrapper}>

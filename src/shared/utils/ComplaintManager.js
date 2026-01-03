@@ -85,7 +85,8 @@ export const ComplaintManager = {
         *,
         type:complaint_types (name, fields),
         agent:users!agent_id (name),
-        resolver:users!resolved_by (name)
+        resolver:users!resolved_by (name),
+        last_actor:users!last_action_by (name)
       `)
             .order('created_at', { ascending: false })
             .limit(limit);
@@ -113,7 +114,8 @@ export const ComplaintManager = {
         *,
         type:complaint_types (name, fields),
         agent:users!agent_id (name),
-        resolver:users!resolved_by (name)
+        resolver:users!resolved_by (name),
+        last_actor:users!last_action_by (name)
       `)
             .eq('id', id)
             .single();
@@ -136,7 +138,8 @@ export const ComplaintManager = {
         *,
         type:complaint_types (name, fields),
         agent:users!agent_id (name),
-        resolver:users!resolved_by (name)
+        resolver:users!resolved_by (name),
+        last_actor:users!last_action_by (name)
       `)
             .eq('agent_id', agentId)
             .order('created_at', { ascending: false })
@@ -240,5 +243,22 @@ export const ComplaintManager = {
             throw error;
         }
         return data;
+
+    },
+
+    /**
+     * Delete a complaint
+     * @param {string} id
+     */
+    deleteComplaint: async (id) => {
+        const { error } = await supabase
+            .from('complaints')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error deleting complaint:', error);
+            throw error;
+        }
     }
 };

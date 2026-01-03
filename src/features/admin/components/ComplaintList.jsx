@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     Search, Filter, CheckCircle, XCircle, Clock,
-    AlertTriangle, MoreVertical, Eye, FileText, PauseCircle, PlayCircle, User, Hash, Bell, Download, Share2
+    AlertTriangle, MoreVertical, Eye, FileText, PauseCircle, PlayCircle, User, Hash, Bell, Download, Share2, Trash2
 } from 'lucide-react';
 import { ComplaintManager } from '../../../shared/utils/ComplaintManager';
 import Modal from '../../../shared/components/Modal';
@@ -19,6 +19,11 @@ const ComplaintList = ({ user }) => {
     const [types, setTypes] = useState([]);
     const [filteredComplaints, setFilteredComplaints] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const complaintsRef = React.useRef(complaints); // Ref to access latest state in callbacks
+
+    useEffect(() => {
+        complaintsRef.current = complaints;
+    }, [complaints]);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('All');
     const [filterDate, setFilterDate] = useState('');
@@ -77,6 +82,28 @@ const ComplaintList = ({ user }) => {
                     // Fetch full updated data
                     const updatedComplaint = await ComplaintManager.getComplaintById(payload.new.id);
                     if (updatedComplaint) {
+                        // Check for Reminder Increment
+                        const oldComplaint = complaintsRef.current.find(c => c.id === payload.new.id);
+                        if (oldComplaint && (updatedComplaint.reminder_count > (oldComplaint.reminder_count || 0))) {
+                            // Notify
+                            if (Notification.permission === 'granted') {
+                                // Get last log agent name
+                                const lastLog = updatedComplaint.reminder_logs && updatedComplaint.reminder_logs.length > 0
+                                    ? updatedComplaint.reminder_logs[updatedComplaint.reminder_logs.length - 1]
+                                    : null;
+                                const agentName = lastLog ? lastLog.agent_name : 'موظف';
+
+                                new Notification('تذكير جديد بشكوى', {
+                                    body: `تم إرسال تذكير للشكوى ${updatedComplaint.customer_name} بواسطة ${agentName}`,
+                                    icon: '/logo.png',
+                                    tag: `reminder-${updatedComplaint.id}-${Date.now()}` // Unique tag
+                                });
+                                const audio = new Audio('/notification.mp3');
+                                audio.play().catch(e => console.log('Audio error:', e));
+                                toast.info('تذكير جديد', `تم تذكير بالشكوى من ${agentName}`);
+                            }
+                        }
+
                         setComplaints(prev => prev.map(c => c.id === payload.new.id ? updatedComplaint : c));
                     }
                 } else if (payload.eventType === 'DELETE') {
@@ -159,6 +186,8 @@ const ComplaintList = ({ user }) => {
             result = result.filter(c => (c.reminder_count || 0) >= 4);
         } else if (filterStatus === 'MediumPriority') {
             result = result.filter(c => (c.reminder_count || 0) >= 2);
+        } else if (filterStatus === 'Active') {
+            result = result.filter(c => ['Pending', 'Processing', 'Suspended'].includes(c.status));
         } else if (filterStatus !== 'All') {
             result = result.filter(c => c.status === filterStatus);
         }
@@ -198,12 +227,13 @@ const ComplaintList = ({ user }) => {
     const getFilterLabel = (status) => {
         if (status === 'HighPriority') return 'الأكثر أهمية (4+)';
         if (status === 'MediumPriority') return 'متوسطة الأهمية (2+)';
+        if (status === 'Active') return 'الشكاوى النشطة (غير المحلولة)';
         return getStatusLabel(status);
     };
 
     const handleUpdateStatus = async (id, newStatus, reason = null) => {
         try {
-            const updates = { status: newStatus };
+            const updates = { status: newStatus, last_action_by: user ? user.id : null };
             if (newStatus === 'Suspended' && reason) updates.suspension_reason = reason;
             if (newStatus === 'Resolved' && reason) {
                 updates.closure_reason = reason;
@@ -254,17 +284,37 @@ const ComplaintList = ({ user }) => {
         try {
             const lines = [];
 
-            lines.push(`*${t('complaints.customerName')}:* ${complaint.customer_name}`);
+            // 1. Basic Fields (Top)
+            if (complaint.type && complaint.type.fields) {
+                const basicFields = complaint.type.fields.filter(f => f.section === 'basic');
+                basicFields.forEach(f => {
+                    if (f.type === 'static_text') {
+                        if (f.options) lines.push(`${f.options}`);
+                    } else if (f.system_key === 'customer_name') {
+                        if (complaint.customer_name) lines.push(`*${f.label}:* ${complaint.customer_name}`);
+                    } else {
+                        const val = complaint.form_data?.[f.id];
+                        if (val) lines.push(`*${f.label}:* ${val}`);
+                    }
+                });
+            } else if (complaint.customer_name) {
+                lines.push(`*${t('complaints.customerName')}:* ${complaint.customer_name}`);
+            }
+
+            // 2. Fixed Phone & Type
             lines.push(`*${t('complaints.customerPhone')}:* ${complaint.customer_number}`);
             lines.push(`*${t('complaints.type')}:* ${complaint.type?.name || '-'}`);
 
-            // Dynamic Fields
-            if (complaint.form_data) {
-                Object.entries(complaint.form_data).forEach(([key, value]) => {
-                    if (key === 'notes' || !value) return;
-                    const fieldDef = complaint.type?.fields?.find(f => f.id.toString() === key.toString());
-                    const label = fieldDef ? fieldDef.label : t('complaints.details');
-                    lines.push(`*${label}:* ${value}`);
+            // 3. Details Fields
+            if (complaint.type && complaint.type.fields) {
+                const detailFields = complaint.type.fields.filter(f => f.section !== 'basic');
+                detailFields.forEach(f => {
+                    if (f.type === 'static_text') {
+                        if (f.options) lines.push(`${f.options}`);
+                    } else {
+                        const val = complaint.form_data?.[f.id];
+                        if (val) lines.push(`*${f.label}:* ${val}`);
+                    }
                 });
             }
 
@@ -278,6 +328,18 @@ const ComplaintList = ({ user }) => {
         } catch (err) {
             console.error('Share error', err);
             toast.error(t('common.error'), t('complaints.shareError'));
+        }
+    };
+
+    const handleDeleteComplaint = async (id) => {
+        if (!window.confirm('هل أنت متأكد من حذف هذه الشكوى نهائياً؟ لا يمكن التراجع عن هذا الإجراء.')) return;
+
+        try {
+            await ComplaintManager.deleteComplaint(id);
+            toast.success(t('common.success'), 'تم حذف الشكوى بنجاح');
+        } catch (error) {
+            console.error(error);
+            toast.error(t('common.error'), 'فشل الحذف');
         }
     };
 
@@ -345,7 +407,7 @@ const ComplaintList = ({ user }) => {
 
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                     <Filter size={18} color="#94a3b8" />
-                    {['All', 'HighPriority', 'MediumPriority', 'Pending', 'Processing', 'Suspended', 'Resolved'].map(status => (
+                    {['All', 'Active', 'HighPriority', 'MediumPriority', 'Pending', 'Processing', 'Suspended', 'Resolved'].map(status => (
                         <button
                             key={status}
                             onClick={() => setFilterStatus(status)}
@@ -378,7 +440,7 @@ const ComplaintList = ({ user }) => {
                             <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>تاريخ الرفع</th>
                             <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>الموظف (مقدم الطلب)</th>
                             <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>تاريخ الإغلاق</th>
-                            <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>بواسطة (المغلق)</th>
+                            <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>بواسطة</th>
                             <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>المدة</th>
                             <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>{t('complaints.status')}</th>
                             <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>{t('complaints.actions')}</th>
@@ -447,21 +509,28 @@ const ComplaintList = ({ user }) => {
                                                 </>
                                             ) : '-'}
                                         </td>
-                                        <td style={{ padding: '1rem', textAlign: 'center', color: '#e2e8f0', fontSize: '0.9rem' }} title={`Resolved By ID: ${complaint.resolved_by}, Resolver Obj: ${JSON.stringify(complaint.resolver)}`}>
-                                            {complaint.resolver?.name || (complaint.resolved_by ? 'User ID: ' + complaint.resolved_by.slice(0, 5) : '-')}
+                                        <td style={{ padding: '1rem', textAlign: 'center', color: '#e2e8f0', fontSize: '0.9rem' }} title={`Updated By ID: ${complaint.last_action_by}, Last Actor: ${JSON.stringify(complaint.last_actor)}`}>
+                                            {complaint.last_actor?.name || complaint.resolver?.name || (complaint.resolved_by ? 'User ID: ' + complaint.resolved_by.slice(0, 5) : '-')}
                                         </td>
                                         <td style={{ padding: '1rem', textAlign: 'center', color: '#fbbf24', fontSize: '0.85rem', fontWeight: 'bold' }}>
                                             {calculateDuration(complaint.created_at, complaint.resolved_at)}
                                         </td>
                                         <td style={{ padding: '1rem', textAlign: 'center' }}>
-                                            <span style={{
-                                                padding: '4px 10px', borderRadius: '12px',
-                                                background: `${getStatusColor(complaint.status)}20`,
-                                                color: getStatusColor(complaint.status),
-                                                fontSize: '0.8rem', fontWeight: '600'
-                                            }}>
-                                                {getStatusLabel(complaint.status)}
-                                            </span>
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                                                <span style={{
+                                                    padding: '4px 10px', borderRadius: '12px',
+                                                    background: `${getStatusColor(complaint.status)}20`,
+                                                    color: getStatusColor(complaint.status),
+                                                    fontSize: '0.8rem', fontWeight: '600'
+                                                }}>
+                                                    {getStatusLabel(complaint.status)}
+                                                </span>
+                                                {complaint.status === 'Suspended' && complaint.suspension_reason && (
+                                                    <span style={{ fontSize: '0.75rem', color: '#f97316', maxWidth: '150px', whiteSpace: 'normal', lineHeight: '1.2' }}>
+                                                        {complaint.suspension_reason}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td style={{ padding: '1rem', textAlign: 'center' }}>
                                             <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
@@ -510,6 +579,17 @@ const ComplaintList = ({ user }) => {
                                                             <CheckCircle size={16} />
                                                         </button>
                                                     </>
+                                                )}
+
+                                                {/* Delete Button - Admin Only */}
+                                                {user && user.role === 'ADMIN' && (
+                                                    <button
+                                                        onClick={() => handleDeleteComplaint(complaint.id)}
+                                                        style={{ padding: '6px', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.1)', border: 'none', color: '#ef4444', cursor: 'pointer' }}
+                                                        title={t('forms.delete')}
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
                                                 )}
                                             </div>
                                         </td>

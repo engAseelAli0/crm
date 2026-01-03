@@ -23,6 +23,7 @@ import CallDetailsModal from '../../admin/components/CallDetailsModal';
 import ComplaintSubmission from '../components/ComplaintSubmission';
 import KnowledgeBaseView from '../components/KnowledgeBaseView';
 import ReminderView from '../components/ReminderView';
+import ChangePasswordModal from '../components/ChangePasswordModal';
 
 
 import ServicePointFinder from '../components/ServicePointFinder';
@@ -77,6 +78,7 @@ const AgentDashboardPage = ({ user, onLogout }) => {
         return sortedModules.length > 0 ? sortedModules[0].id : 'dashboard';
     });
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
 
     // Sidebar Toggle
     const toggleSidebar = () => setSidebarCollapsed(!sidebarCollapsed);
@@ -554,6 +556,11 @@ const AgentDashboardPage = ({ user, onLogout }) => {
                         <LanguageToggle />
                         <ThemeToggle />
 
+
+                        <button className={styles.iconBtn} onClick={() => setIsPasswordModalOpen(true)} title="الإعدادات">
+                            <Settings size={20} color="#94a3b8" />
+                        </button>
+
                         <button className={styles.iconBtn}><HelpCircle size={20} color="#94a3b8" /></button>
 
                         {/* Notification Bell */}
@@ -771,11 +778,17 @@ const AgentDashboardPage = ({ user, onLogout }) => {
                 </div>
             </main >
 
-            {/* Modals */}
-            < IncomingCallModal
+            {/* Incoming Call Modal */}
+            <IncomingCallModal
                 call={incomingCall}
                 onAccept={handleAcceptCall}
                 onReject={handleRejectCall}
+            />
+
+            {/* Change Password Modal */}
+            <ChangePasswordModal
+                isOpen={isPasswordModalOpen}
+                onClose={() => setIsPasswordModalOpen(false)}
             />
 
             {viewCallDetails && (

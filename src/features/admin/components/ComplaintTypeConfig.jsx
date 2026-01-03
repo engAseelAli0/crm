@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit, Save, X, List, Type, CheckSquare, Settings } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Plus, Trash2, Edit, Save, X, List, Type, CheckSquare, Settings, Eye, EyeOff, GripVertical } from 'lucide-react';
 import { ComplaintManager } from '../../../shared/utils/ComplaintManager';
 import Modal from '../../../shared/components/Modal';
 import { useToast } from '../../../shared/components/Toast';
@@ -10,6 +10,7 @@ const ComplaintTypeConfig = () => {
     const toast = useToast();
     const [types, setTypes] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const fieldsEndRef = useRef(null);
 
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -19,6 +20,10 @@ const ComplaintTypeConfig = () => {
         instructions: '',
         fields: []
     });
+
+    const SYSTEM_FIELDS = [
+        { key: 'customer_name', label: 'اسم العميل', type: 'text' }
+    ];
 
     useEffect(() => {
         loadTypes();
@@ -61,14 +66,45 @@ const ComplaintTypeConfig = () => {
     };
 
     // --- Field Builder Logic ---
+    const addSystemField = (sysFieldKey) => {
+        const sysField = SYSTEM_FIELDS.find(f => f.key === sysFieldKey);
+        if (!sysField) return;
+
+        // Check if already exists
+        if (formData.fields.some(f => f.system_key === sysFieldKey)) {
+            toast.error(t('forms.alert'), 'هذا الحقل موجود بالفعل');
+            return;
+        }
+
+        setFormData(prev => ({
+            ...prev,
+            fields: [
+                ...prev.fields,
+                {
+                    id: Date.now(),
+                    label: sysField.label,
+                    type: 'system',
+                    system_key: sysFieldKey,
+                    required: true,
+                    visible: true,
+                    section: 'basic',
+                    original_type: sysField.type // for UI rendering hint
+                }
+            ]
+        }));
+    };
     const addField = () => {
         setFormData(prev => ({
             ...prev,
             fields: [
                 ...prev.fields,
-                { id: Date.now(), label: '', type: 'text', required: false, options: '' }
+                { id: Date.now(), label: '', type: 'text', required: false, options: '', visible: true, section: 'details' }
             ]
         }));
+        // Scroll to bottom after new field is rendered
+        setTimeout(() => {
+            fieldsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
     };
 
     const removeField = (id) => {
@@ -83,6 +119,34 @@ const ComplaintTypeConfig = () => {
             ...prev,
             fields: prev.fields.map(f => f.id === id ? { ...f, ...updates } : f)
         }));
+    };
+
+    // --- Drag & Drop Logic ---
+    const [draggedItemIndex, setDraggedItemIndex] = useState(null);
+
+    const handleDragStart = (e, index) => {
+        setDraggedItemIndex(index);
+        e.dataTransfer.effectAllowed = "move";
+        // Ghost image usually handled by browser
+    };
+
+    const handleDragOver = (e, index) => {
+        e.preventDefault(); // Allow drop
+        e.dataTransfer.dropEffect = "move";
+    };
+
+    const handleDrop = (e, targetIndex) => {
+        e.preventDefault();
+        if (draggedItemIndex === null || draggedItemIndex === targetIndex) return;
+
+        setFormData(prev => {
+            const newFields = [...prev.fields];
+            const item = newFields[draggedItemIndex];
+            newFields.splice(draggedItemIndex, 1);
+            newFields.splice(targetIndex, 0, item);
+            return { ...prev, fields: newFields };
+        });
+        setDraggedItemIndex(null);
     };
 
     // --- Save Logic ---
@@ -275,12 +339,24 @@ const ComplaintTypeConfig = () => {
                                     </div>
                                 ) : (
                                     formData.fields.map((field, index) => (
-                                        <div key={field.id} style={{
-                                            background: 'rgba(15, 23, 42, 0.5)',
-                                            padding: '1rem', borderRadius: '8px',
-                                            border: '1px solid rgba(255, 255, 255, 0.05)',
-                                            display: 'flex', gap: '1rem', alignItems: 'flex-start'
-                                        }}>
+                                        <div
+                                            key={field.id}
+                                            draggable
+                                            onDragStart={(e) => handleDragStart(e, index)}
+                                            onDragOver={(e) => handleDragOver(e, index)}
+                                            onDrop={(e) => handleDrop(e, index)}
+                                            style={{
+                                                background: 'rgba(15, 23, 42, 0.5)',
+                                                padding: '1rem', borderRadius: '8px',
+                                                border: '1px solid rgba(255, 255, 255, 0.05)',
+                                                display: 'flex', gap: '1rem', alignItems: 'flex-start',
+                                                opacity: draggedItemIndex === index ? 0.5 : 1,
+                                                cursor: 'grab'
+                                            }}
+                                        >
+                                            <div style={{ display: 'flex', alignItems: 'center', paddingTop: '0.5rem', color: '#64748b', cursor: 'grab' }}>
+                                                <GripVertical size={20} />
+                                            </div>
                                             <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                                                 <div>
                                                     <label style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>{t('forms.fieldName')}</label>
@@ -296,7 +372,11 @@ const ComplaintTypeConfig = () => {
                                                     <label style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>{t('forms.fieldType')}</label>
                                                     <select
                                                         value={field.type}
-                                                        onChange={(e) => updateField(field.id, { type: e.target.value })}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value;
+                                                            // Update type but PRESERVE system_key if present
+                                                            updateField(field.id, { type: val });
+                                                        }}
                                                         style={{ width: '100%', padding: '0.5rem', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: 'white', fontSize: '0.9rem' }}
                                                     >
                                                         <option value="text">{t('complaints.fieldTypes.text')}</option>
@@ -304,17 +384,20 @@ const ComplaintTypeConfig = () => {
                                                         <option value="textarea">{t('complaints.fieldTypes.textarea')}</option>
                                                         <option value="dropdown">{t('complaints.fieldTypes.dropdown')}</option>
                                                         <option value="date">{t('complaints.fieldTypes.date')}</option>
+                                                        <option value="static_text">نص ثابت (عرض فقط)</option>
                                                     </select>
                                                 </div>
 
-                                                {field.type === 'dropdown' && (
+                                                {(field.type === 'dropdown' || field.type === 'static_text') && (
                                                     <div style={{ gridColumn: '1 / -1' }}>
-                                                        <label style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>{t('forms.fieldOptions')}</label>
+                                                        <label style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginBottom: '4px' }}>
+                                                            {field.type === 'static_text' ? 'النص الذي سيظهر للموظف' : t('forms.fieldOptions')}
+                                                        </label>
                                                         <input
                                                             type="text"
                                                             value={field.options || ''}
                                                             onChange={(e) => updateField(field.id, { options: e.target.value })}
-                                                            placeholder={t('forms.fieldOptions')}
+                                                            placeholder={field.type === 'static_text' ? 'اكتب النص هنا...' : t('forms.fieldOptions')}
                                                             style={{ width: '100%', padding: '0.5rem', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', color: 'white', fontSize: '0.9rem' }}
                                                         />
                                                     </div>
@@ -330,15 +413,44 @@ const ComplaintTypeConfig = () => {
                                                     <label htmlFor={`req-${field.id}`} style={{ fontSize: '0.85rem', color: '#cbd5e1' }}>{t('forms.required')}</label>
                                                 </div>
                                             </div>
-                                            <button
-                                                onClick={() => removeField(field.id)}
-                                                style={{ color: '#ef4444', background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px' }}
-                                            >
-                                                <X size={16} />
-                                            </button>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center' }}>
+                                                <button
+                                                    onClick={() => updateField(field.id, { section: field.section === 'basic' ? 'details' : 'basic' })}
+                                                    title={field.section === 'basic' ? 'مكان الحقل: معلومات أساسية' : 'مكان الحقل: تفاصيل الشكوى'}
+                                                    style={{
+                                                        fontSize: '0.7rem',
+                                                        padding: '4px 8px',
+                                                        borderRadius: '4px',
+                                                        background: field.section === 'basic' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(148, 163, 184, 0.2)',
+                                                        color: field.section === 'basic' ? '#60a5fa' : '#94a3b8',
+                                                        border: 'none', cursor: 'pointer',
+                                                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px'
+                                                    }}
+                                                >
+                                                    <Settings size={14} />
+                                                    {field.section === 'basic' ? 'أساسي' : 'تفاصيل'}
+                                                </button>
+                                                <button
+                                                    onClick={() => updateField(field.id, { visible: !field.visible })}
+                                                    title={field.visible ? 'إخفاء من الموظف' : 'إظهار للموظف'}
+                                                    style={{
+                                                        color: field.visible ? '#60a5fa' : '#94a3b8',
+                                                        background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px'
+                                                    }}
+                                                >
+                                                    {field.visible !== false ? <Eye size={16} /> : <EyeOff size={16} />}
+                                                </button>
+                                                <button
+                                                    onClick={() => removeField(field.id)}
+                                                    style={{ color: '#ef4444', background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px' }}
+                                                >
+                                                    <X size={16} />
+                                                </button>
+                                            </div>
                                         </div>
                                     ))
                                 )}
+                                <div ref={fieldsEndRef} />
                             </div>
                         </div>
 
@@ -374,8 +486,9 @@ const ComplaintTypeConfig = () => {
                         </div>
                     </div>
                 </Modal>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 };
 
