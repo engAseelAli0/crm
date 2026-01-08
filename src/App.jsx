@@ -19,8 +19,20 @@ function App() {
 
   useEffect(() => {
     const initApp = async () => {
+      // 1. Check Session Immediately (Critical: Prioritize Session Restoration)
+      // We do this BEFORE any network calls so the user is not logged out during loading.
       try {
-        // 1. Check Maintenance Mode from Supabase
+        const session = DataManager.getCurrentUser();
+        if (session) {
+          setUser(session);
+          console.log('Session restored for:', session.username);
+        }
+      } catch (e) {
+        console.error("Session restore failed", e);
+      }
+
+      try {
+        // 2. Check Maintenance Mode from Supabase
         const { data: settings } = await supabase
           .from('app_settings')
           .select('value')
@@ -31,27 +43,39 @@ function App() {
           setIsMaintenance(true);
         }
 
-        // Subscribe to changes
-        supabase
-          .channel('app_settings')
-          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_settings', filter: "key=eq.maintenance_mode" }, (payload) => {
-            if (payload.new && payload.new.value) {
-              setIsMaintenance(payload.new.value.enabled);
+        // Subscribe to changes with cleanup
+        const channelName = 'maintenance_updates_v3'; // Unique name to force fresh sub
+        const channel = supabase.channel(channelName)
+          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_settings' }, (payload) => {
+            console.log('App Setting Changed (Realtime):', payload);
+            if (payload.new && payload.new.key === 'maintenance_mode') {
+              // Handle both nested value (safe) and direct
+              const newVal = payload.new.value;
+              const isEnabled = newVal && typeof newVal === 'object' ? newVal.enabled : newVal === true;
+              setIsMaintenance(isEnabled);
             }
           })
-          .subscribe();
+          .on('broadcast', { event: 'maintenance_toggled' }, (payload) => {
+            console.log('Broadcast Received:', payload);
+            if (payload.payload) {
+              setIsMaintenance(payload.payload.enabled);
+            }
+          })
+          .subscribe((status) => {
+            console.log(`Maintenance Subscription Status (${channelName}):`, status);
+          });
 
-        // Initialize Mock Data
-        DataManager.seed();
+        // Cleanup function for the effect
+        return () => {
+          console.log("Unsubscribing from maintenance channel...");
+          supabase.removeChannel(channel);
+        };
 
-        // Check Session
-        const session = DataManager.getCurrentUser();
-        if (session) {
-          setUser(session);
-        }
       } catch (err) {
         console.error('App initialization error:', err);
       } finally {
+        // Initialize Mock Data
+        DataManager.seed();
         setLoading(false);
       }
     };

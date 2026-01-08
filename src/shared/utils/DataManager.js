@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabase';
+import { LogManager } from './LogManager';
 
 export const DataManager = {
   // --- Initialization ---
@@ -23,6 +24,12 @@ export const DataManager = {
 
       if (data) {
         localStorage.setItem('app_session', JSON.stringify(data));
+
+        // Log Login
+        try {
+          await LogManager.logLogin(data.id, data.role);
+        } catch (e) { console.error('Log error', e); }
+
         return data;
       }
     } catch (err) {
@@ -33,6 +40,9 @@ export const DataManager = {
 
   logout: () => {
     localStorage.removeItem('app_session');
+    // Clear URL parameters and redirect to root to prevent deep links persisting
+    window.history.replaceState(null, '', '/');
+
   },
 
   getCurrentUser: () => {

@@ -7,16 +7,32 @@
     border: none;
     border-radius: 12px;
     color: var(--text-secondary);
+    /* Uses variable now */
     cursor: pointer;
     transition: all 0.2s ease;
     justify-content: flex-start;
     position: relative;
     width: 100%;
+    overflow: hidden;
+    /* Ensure no overflow */
+}
+
+/* Ensure icon is never shrunk */
+.item>svg {
+    flex-shrink: 0;
+    min-width: 20px;
+}
+
+.item:hover {
+    background: var(--glass-border);
+    color: var(--text-primary);
 }
 
 .item.active {
     background: rgba(59, 130, 246, 0.15);
-    color: #60a5fa;
+    /* Keep primary brand transparency */
+    color: var(--primary);
+    /* Use primary var */
 }
 
 .item.collapsed {

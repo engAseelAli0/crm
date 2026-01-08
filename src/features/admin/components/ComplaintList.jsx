@@ -4,6 +4,7 @@ import {
     AlertTriangle, MoreVertical, Eye, FileText, PauseCircle, PlayCircle, User, Hash, Bell, Download, Share2, Trash2
 } from 'lucide-react';
 import { ComplaintManager } from '../../../shared/utils/ComplaintManager';
+import { DataManager } from '../../../shared/utils/DataManager';
 import Modal from '../../../shared/components/Modal';
 import ComplaintExportModal from './ComplaintExportModal';
 import { useToast } from '../../../shared/components/Toast';
@@ -19,6 +20,7 @@ const ComplaintList = ({ user }) => {
     const [types, setTypes] = useState([]);
     const [filteredComplaints, setFilteredComplaints] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [users, setUsers] = useState([]); // For filters
     const complaintsRef = React.useRef(complaints); // Ref to access latest state in callbacks
 
     useEffect(() => {
@@ -27,6 +29,9 @@ const ComplaintList = ({ user }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('All');
     const [filterDate, setFilterDate] = useState('');
+    const [filterType, setFilterType] = useState('');
+    const [filterCreator, setFilterCreator] = useState(''); // Raised By
+    const [filterResolver, setFilterResolver] = useState(''); // Closed By
 
     // Modal State
     const [selectedComplaint, setSelectedComplaint] = useState(null);
@@ -124,20 +129,22 @@ const ComplaintList = ({ user }) => {
 
     useEffect(() => {
         filterComplaints();
-    }, [searchTerm, filterStatus, filterDate, complaints]);
+    }, [searchTerm, filterStatus, filterDate, filterType, filterCreator, filterResolver, complaints]);
 
     const loadData = async () => {
         setIsLoading(true);
         try {
-            const [allComplaints, allTypes] = await Promise.all([
+            const [allComplaints, allTypes, allUsers] = await Promise.all([
                 ComplaintManager.getAllComplaints(),
-                ComplaintManager.getComplaintTypes()
+                ComplaintManager.getComplaintTypes(),
+                DataManager.getUsers()
             ]);
 
             // Sort by date desc
             const sorted = allComplaints.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
             setComplaints(sorted);
             setTypes(allTypes);
+            setUsers(allUsers || []);
         } catch (error) {
             console.error(error);
             toast.error(t('common.error'), t('complaints.loadError'));
@@ -198,6 +205,24 @@ const ComplaintList = ({ user }) => {
                 const cDate = new Date(c.created_at).toISOString().split('T')[0];
                 return cDate === filterDate;
             });
+        }
+
+        // Filter by Type
+        if (filterType) {
+            result = result.filter(c => c.type_id === filterType);
+        }
+
+        // Filter by Creator
+        if (filterCreator) {
+            result = result.filter(c => c.agent_id === filterCreator || c.agent?.id === filterCreator);
+        }
+
+        // Filter by Resolver
+        if (filterResolver) {
+            result = result.filter(c =>
+                c.resolved_by === filterResolver ||
+                (c.resolver && c.resolver.id === filterResolver)
+            );
         }
 
         setFilteredComplaints(result);
@@ -425,6 +450,62 @@ const ComplaintList = ({ user }) => {
                             {status === 'All' ? t('forms.select') : getFilterLabel(status)}
                         </button>
                     ))}
+                </div>
+
+                {/* Additional Filters: Type, Creator, Resolver */}
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <select
+                        value={filterType}
+                        onChange={(e) => setFilterType(e.target.value)}
+                        style={{
+                            padding: '0.4rem 0.8rem',
+                            borderRadius: '6px',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            background: 'rgba(255,255,255,0.05)',
+                            color: 'white',
+                            fontSize: '0.85rem'
+                        }}
+                    >
+                        <option value="">نوع الشكوى (الكل)</option>
+                        {types.map(t => (
+                            <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                    </select>
+
+                    <select
+                        value={filterCreator}
+                        onChange={(e) => setFilterCreator(e.target.value)}
+                        style={{
+                            padding: '0.4rem 0.8rem',
+                            borderRadius: '6px',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            background: 'rgba(255,255,255,0.05)',
+                            color: 'white',
+                            fontSize: '0.85rem'
+                        }}
+                    >
+                        <option value="">(رافع الطلب)</option>
+                        {users.map(u => (
+                            <option key={u.id} value={u.id}>{u.name}</option>
+                        ))}
+                    </select>
+                    <select
+                        value={filterResolver}
+                        onChange={(e) => setFilterResolver(e.target.value)}
+                        style={{
+                            padding: '0.4rem 0.8rem',
+                            borderRadius: '6px',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            background: 'rgba(255,255,255,0.05)',
+                            color: 'white',
+                            fontSize: '0.85rem'
+                        }}
+                    >
+                        <option value="">(مغلق الطلب)</option>
+                        {users.map(u => (
+                            <option key={u.id} value={u.id}>{u.name}</option>
+                        ))}
+                    </select>
                 </div>
             </div>
 

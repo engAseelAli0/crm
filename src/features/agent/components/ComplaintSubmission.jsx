@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Send, FileText, AlertCircle, CheckCircle, List, Clock, RotateCcw, Bell, Power, Search, Calendar, Eye, Share2, Edit } from 'lucide-react';
 import { ComplaintManager } from '../../../shared/utils/ComplaintManager';
+import { supabase } from '../../../lib/supabase';
 import { useToast } from '../../../shared/components/Toast';
 import Modal from '../../../shared/components/Modal';
 import { useLanguage } from '../../../shared/context/LanguageContext';
 
+import { DataManager } from '../../../shared/utils/DataManager';
 const ComplaintSubmission = ({ user }) => {
     const { t } = useLanguage();
     const toast = useToast();
@@ -32,7 +34,12 @@ const ComplaintSubmission = ({ user }) => {
     const [viewMode, setViewMode] = useState('active'); // 'active' | 'resolved'
     // Default filter date to today (YYYY-MM-DD)
     // Default filter date to empty (All time)
+    // Default filter date to empty (All time)
     const [filterDate, setFilterDate] = useState('');
+    const [filterType, setFilterType] = useState('');
+    const [filterCreator, setFilterCreator] = useState('');
+    const [filterResolver, setFilterResolver] = useState('');
+    const [users, setUsers] = useState([]); // For filter dropdowns
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
     // Details Modal
@@ -46,10 +53,50 @@ const ComplaintSubmission = ({ user }) => {
 
     useEffect(() => {
         loadTypes();
+        loadUsers(); // Fetch users for filters
         if (activeTab === 'history') {
             loadHistory();
+
+            // Realtime Subscription
+            const channel = supabase
+                .channel('complaints-list-updates')
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table: 'complaints' },
+                    (payload) => {
+                        // console.log('Realtime update received:', payload);
+                        loadHistory(); // Reload list on any change
+                    }
+                )
+                .subscribe();
+
+            return () => {
+                supabase.removeChannel(channel);
+            };
         }
     }, [activeTab]);
+
+    const checkCooldown = (complaint) => {
+        if (!complaint.reminder_logs || complaint.reminder_logs.length === 0) return false;
+        const lastLog = complaint.reminder_logs[complaint.reminder_logs.length - 1];
+        const lastTime = new Date(lastLog.timestamp).getTime();
+        const now = new Date().getTime();
+        return (now - lastTime) < (5 * 60 * 1000); // 5 minutes
+    };
+
+    const loadUsers = async () => {
+        const data = await DataManager.getUsers();
+        setUsers(data || []);
+    };
+
+    // Filtering Effect
+    // Auto-switch to 'Resolved' or 'All' when filtering by Resolver
+    useEffect(() => {
+        if (filterResolver && viewMode === 'active') {
+            setViewMode('all');
+            toast.info('تنبيه', 'تم عرض كل الشكاوى لتطبيق فلتر "مغلق الطلب"');
+        }
+    }, [filterResolver]);
 
     // Filtering Effect
     useEffect(() => {
@@ -61,7 +108,6 @@ const ComplaintSubmission = ({ user }) => {
         } else if (viewMode === 'resolved') {
             result = result.filter(c => c.status === 'Resolved');
         }
-        // 'all' mode: do nothing (return all)
 
         // 1. Filter by Search Term (Global Search)
         if (searchTerm) {
@@ -72,16 +118,33 @@ const ComplaintSubmission = ({ user }) => {
                 c.id?.toLowerCase().includes(lower)
             );
         }
-        // 2. If no search, check date filter
-        else if (filterDate) {
+
+        // 2. Filter by Date
+        if (filterDate) {
             result = result.filter(c => {
                 const complaintDate = new Date(c.created_at).toLocaleDateString('en-CA');
                 return complaintDate === filterDate;
             });
         }
 
+        // 3. Filter by Type
+        if (filterType) {
+            result = result.filter(c => c.type_id === filterType);
+        }
+
+        // 4. Filter by Creator (Raised By)
+        if (filterCreator) {
+            // Check both agent object/ID and potentially different structure
+            result = result.filter(c => c.agent_id === filterCreator || c.agent?.id === filterCreator);
+        }
+
+        // 5. Filter by Resolver (Closed By)
+        if (filterResolver) {
+            result = result.filter(c => c.resolved_by === filterResolver || c.resolver?.id === filterResolver);
+        }
+
         setFilteredComplaints(result);
-    }, [searchTerm, filterDate, myComplaints, viewMode]);
+    }, [searchTerm, filterDate, filterType, filterCreator, filterResolver, myComplaints, viewMode]);
 
     const loadTypes = async () => {
         try {
@@ -736,6 +799,60 @@ const ComplaintSubmission = ({ user }) => {
                                     }}
                                 />
                             </div>
+
+                            {/* Filters: Type, Creator, Resolver */}
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                                <select
+                                    value={filterType}
+                                    onChange={(e) => setFilterType(e.target.value)}
+                                    style={{
+                                        padding: '0.8rem',
+                                        background: 'rgba(30, 41, 59, 0.5)',
+                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                        borderRadius: '12px', color: 'white',
+                                        fontSize: '0.9rem'
+                                    }}
+                                >
+                                    <option value="">كل الأنواع</option>
+                                    {types.map(t => (
+                                        <option key={t.id} value={t.id}>{t.name}</option>
+                                    ))}
+                                </select>
+
+                                <select
+                                    value={filterCreator}
+                                    onChange={(e) => setFilterCreator(e.target.value)}
+                                    style={{
+                                        padding: '0.8rem',
+                                        background: 'rgba(30, 41, 59, 0.5)',
+                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                        borderRadius: '12px', color: 'white',
+                                        fontSize: '0.9rem'
+                                    }}
+                                >
+                                    <option value="">رافع الطلب</option>
+                                    {users.map(u => (
+                                        <option key={u.id} value={u.id}>{u.name}</option>
+                                    ))}
+                                </select>
+
+                                <select
+                                    value={filterResolver}
+                                    onChange={(e) => setFilterResolver(e.target.value)}
+                                    style={{
+                                        padding: '0.8rem',
+                                        background: 'rgba(30, 41, 59, 0.5)',
+                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                        borderRadius: '12px', color: 'white',
+                                        fontSize: '0.9rem'
+                                    }}
+                                >
+                                    <option value="">مغلق الطلب</option>
+                                    {users.map(u => (
+                                        <option key={u.id} value={u.id}>{u.name}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
 
                         <div style={{
@@ -865,25 +982,45 @@ const ComplaintSubmission = ({ user }) => {
 
                                                         {/* Remind Button - Only if NOT Resolved */}
                                                         {complaint.status !== 'Resolved' && (
-                                                            <button
-                                                                onClick={async () => {
-                                                                    try {
-                                                                        await ComplaintManager.incrementReminder(complaint.id, user);
-                                                                        toast.success('تم التذكير', 'تم إرسال تذكير للإدارة');
-                                                                    } catch (err) {
-                                                                        toast.error('خطأ', 'فشل إرسال التذكير');
-                                                                    }
-                                                                }}
-                                                                style={{
-                                                                    width: '32px', height: '32px', padding: 0, borderRadius: '6px',
-                                                                    background: 'rgba(234, 179, 8, 0.1)', border: 'none',
-                                                                    color: '#eab308', cursor: 'pointer',
-                                                                    display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                                                }}
-                                                                title="تذكير الإدارة"
-                                                            >
-                                                                <Bell size={16} />
-                                                            </button>
+                                                            checkCooldown(complaint) ? (
+                                                                <div
+                                                                    title="يرجى الانتظار 5 دقائق قبل إرسال تذكير آخر"
+                                                                    style={{
+                                                                        width: '32px', height: '32px', padding: 0, borderRadius: '6px',
+                                                                        background: 'rgba(148, 163, 184, 0.1)', border: 'none',
+                                                                        color: '#64748b', cursor: 'not-allowed',
+                                                                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                                                    }}
+                                                                >
+                                                                    <Clock size={16} />
+                                                                </div>
+                                                            ) : (
+                                                                <button
+                                                                    onClick={async () => {
+                                                                        try {
+                                                                            await ComplaintManager.incrementReminder(complaint.id, user);
+                                                                            toast.success('تم التذكير', 'تم إرسال تذكير للإدارة');
+                                                                            loadHistory(); // Refresh to update local logs/timestamp immediately
+                                                                        } catch (err) {
+                                                                            // Check if it's our cooldown error
+                                                                            if (err.message && err.message.includes('5 minutes')) {
+                                                                                toast.info('تنبيه', 'يرجى الانتظار 5 دقائق بين التذكيرات');
+                                                                            } else {
+                                                                                toast.error('خطأ', 'فشل إرسال التذكير');
+                                                                            }
+                                                                        }
+                                                                    }}
+                                                                    style={{
+                                                                        width: '32px', height: '32px', padding: 0, borderRadius: '6px',
+                                                                        background: 'rgba(234, 179, 8, 0.1)', border: 'none',
+                                                                        color: '#eab308', cursor: 'pointer',
+                                                                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                                                    }}
+                                                                    title="تذكير الإدارة"
+                                                                >
+                                                                    <Bell size={16} />
+                                                                </button>
+                                                            )
                                                         )}
 
                                                         {/* Status Toggle (Resolved <-> Pending/Processing) */}

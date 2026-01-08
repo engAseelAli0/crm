@@ -3,9 +3,12 @@
     border-radius: 16px;
     border: 1px solid var(--glass-border);
     background: var(--panel-bg);
+    /* Critical for Light Mode: White */
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
+    box-shadow: var(--glass-shadow);
+    /* Add depth */
 }
 
 .card:hover {

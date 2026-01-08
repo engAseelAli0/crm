@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 
 import { DataManager } from '../../../shared/utils/DataManager';
+import { LogManager } from '../../../shared/utils/LogManager';
 import SidebarItem from '../../../shared/components/SidebarItem';
 import StatsCard from '../../../shared/components/StatsCard';
 import UserAvatar from '../../../shared/components/UserAvatar';
@@ -46,6 +47,13 @@ const AgentDashboardPage = ({ user, onLogout }) => {
 
     // Dynamic Default Tab Logic
     const [activeTab, setActiveTab] = useState(() => {
+        // Deep Linking: Priority to URL param
+        const params = new URLSearchParams(window.location.search);
+        const urlTab = params.get('tab');
+        // Validate if urlTab is allowed? Ideally yes, but for now we trust or fallback if UI doesn't render it.
+        // We can do a quick check against config if needed, but the UI handles unknown tabs gracefully (fallback to 'Coming Soon' or similar).
+        if (urlTab) return urlTab;
+
         const userPerms = user.permissions || [];
         const defaultPerms = getDefaultModulesForRole(user.role);
 
@@ -77,6 +85,24 @@ const AgentDashboardPage = ({ user, onLogout }) => {
 
         return sortedModules.length > 0 ? sortedModules[0].id : 'dashboard';
     });
+
+    // Deep Linking: Sync URL
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (activeTab === 'dashboard') {
+            params.delete('tab');
+        } else {
+            params.set('tab', activeTab);
+        }
+        const newUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
+        window.history.pushState({}, '', newUrl);
+
+        // Activity Logging: Navigate
+        if (user && user.id) {
+            LogManager.logNavigation(user.id, user.role, activeTab, t(`sidebar.${activeTab}`) || activeTab);
+        }
+    }, [activeTab]);
+
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
 
@@ -554,7 +580,7 @@ const AgentDashboardPage = ({ user, onLogout }) => {
 
                     <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                         <LanguageToggle />
-                        <ThemeToggle />
+                        {/* <ThemeToggle /> - Disabled per user request */}
 
 
                         <button className={styles.iconBtn} onClick={() => setIsPasswordModalOpen(true)} title="الإعدادات">
@@ -701,7 +727,7 @@ const AgentDashboardPage = ({ user, onLogout }) => {
                             )}
                         </div>
 
-                        <button className={styles.iconBtn}><Settings size={20} color="#94a3b8" /></button>
+
                     </div>
                 </header>
 

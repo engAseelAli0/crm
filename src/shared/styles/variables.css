@@ -25,17 +25,40 @@
 }
 
 /* Light Theme - Refined */
+/* Light Theme - Premium Refined */
 [data-theme="light"] {
-  --bg-color: #f3f4f6;
-  --bg-gradient: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
-  --glass-bg: rgba(255, 255, 255, 0.95);
-  /* High opacity for clean, professional look */
-  --glass-border: rgba(0, 0, 0, 0.08);
+  /* Backgrounds */
+  --bg-color: #f8fafc;
+  /* Slate 50 */
+  --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  --panel-bg: rgba(255, 255, 255, 0.85);
+  /* Frosty White */
+
+  /* Glass Effects */
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(148, 163, 184, 0.2);
+  /* Slate 400 low opacity */
   --glass-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-  --text-primary: #111827;
-  --text-secondary: #4b5563;
-  --panel-bg: #ffffff;
+
+  /* Text */
+  --text-primary: #0f172a;
+  /* Slate 900 - Very Dark */
+  --text-secondary: #475569;
+  /* Slate 600 */
+  --text-muted: #94a3b8;
+  /* Slate 400 */
+
+  /* Inputs & Elements */
+  --input-bg: #ffffff;
+  --input-border: #cbd5e1;
+  /* Slate 300 */
+  --card-bg: #ffffff;
+
   /* Scrollbar */
-  --scrollbar-thumb: rgba(0, 0, 0, 0.2);
-  --scrollbar-track: rgba(0, 0, 0, 0.05);
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-track: transparent;
+
+  /* Overrides for specific dark UI elements to be inverted */
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #e2e8f0;
 }

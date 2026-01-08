@@ -19,6 +19,7 @@ import {
 
 import { ReportGenerator } from '../../../shared/utils/ReportGenerator';
 import { DataManager } from '../../../shared/utils/DataManager';
+import { LogManager } from '../../../shared/utils/LogManager';
 import Modal from '../../../shared/components/Modal';
 import SidebarItem from '../../../shared/components/SidebarItem';
 import StatsCard from '../../../shared/components/StatsCard';
@@ -40,9 +41,12 @@ import CustomerTrackingView from '../components/CustomerTrackingView';
 import KnowledgeBaseManager from '../components/KnowledgeBaseManager';
 import ComplaintTypeConfig from '../components/ComplaintTypeConfig';
 import ServicePointsManager from '../components/ServicePointsManager';
+import ActivityLogsView from '../components/ActivityLogsView';
+
 // Import Agent Components for Admin usage
 import ComplaintSubmission from '../../agent/components/ComplaintSubmission';
 import ReminderView from '../../agent/components/ReminderView';
+// import { useToast } from '../../../shared/components/Toast'; // Already imported above if needed
 import ComplaintList from '../components/ComplaintList';
 import PermissionsManager from '../components/PermissionsManager';
 import { NAVIGATION_CONFIG, getDefaultModulesForRole } from '../constants/navigationConfig';
@@ -55,7 +59,30 @@ const AdminDashboardPage = ({ user, onLogout }) => {
     const { theme } = useTheme();
     const { t } = useLanguage();
     const toast = useToast();
-    const [activeTab, setActiveTab] = useState('dashboard');
+    const [activeTab, setActiveTab] = useState(() => {
+        // Deep Linking: Check URL param on load
+        const params = new URLSearchParams(window.location.search);
+        const tab = params.get('tab');
+        return tab || 'dashboard';
+    });
+
+    // Deep Linking: Sync URL when tab changes
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (activeTab === 'dashboard') {
+            params.delete('tab');
+        } else {
+            params.set('tab', activeTab);
+        }
+        const newUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
+        window.history.pushState({}, '', newUrl);
+
+        // Activity Logging: Navigate
+        if (user && user.id) {
+            LogManager.logNavigation(user.id, user.role, activeTab, t(`sidebar.${activeTab}`) || activeTab);
+        }
+    }, [activeTab]);
+
     const [currentUser, setCurrentUser] = useState(user); // Local user state for live updates
     const [stats, setStats] = useState({
         totalCalls: 0,
@@ -622,7 +649,9 @@ const AdminDashboardPage = ({ user, onLogout }) => {
                             {activeTab === 'users' && t('sidebar.users')}
                             {activeTab === 'performance' && t('sidebar.performance')}
                             {activeTab === 'reports' && t('sidebar.reports')}
-                            {activeTab === 'tracking' && t('sidebar.tracking')}
+                            {activeTab === 'performance' && t('sidebar.performance')}
+                            {activeTab === 'reports' && t('sidebar.reports')}
+                            {activeTab === 'tracking' && 'سجل النشاطات'}
                             {activeTab === 'complaints_config' && t('sidebar.complaintsConfig')}
                             {activeTab === 'complaints_manage' && t('sidebar.complaintsManage')}
                             {activeTab === 'settings' && t('sidebar.settings')}
@@ -633,15 +662,16 @@ const AdminDashboardPage = ({ user, onLogout }) => {
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                         <LanguageToggle />
-                        <ThemeToggle />
+                        {/* <ThemeToggle /> - Disabled per user request */}
                     </div>
 
 
                 </header>
 
-                {/* Dashboard Tab */}
+                {/* Content Switcher */}
                 {activeTab === 'dashboard' && viewMode === 'dashboard' && (
                     <div style={{ animation: 'fadeIn 0.5s ease-out' }}>
+                        {/* ... (Existing Dashboard) ... */}
                         <div className={styles.statsGrid}>
                             <StatsCard
                                 title="إجمالي المكالمات"
@@ -955,10 +985,10 @@ const AdminDashboardPage = ({ user, onLogout }) => {
                     </div>
                 )}
 
-                {/* Customer Tracking Tab */}
+                {/* Activity Logs (Tracking) Tab */}
                 {activeTab === 'tracking' && (
-                    <div style={{ animation: 'fadeIn 0.5s ease-out', height: 'calc(100vh - 140px)', display: 'flex', flexDirection: 'column' }}>
-                        <CustomerTrackingView calls={calls} users={users} />
+                    <div style={{ animation: 'fadeIn 0.5s ease-out', height: 'calc(100vh - 140px)' }}>
+                        <ActivityLogsView />
                     </div>
                 )}
 

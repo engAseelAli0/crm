@@ -14,9 +14,11 @@
 
 .sidebar {
     padding: 1.5rem;
-    border-right: 1px solid var(--glass-border);
+    border-left: 1px solid var(--glass-border);
+    /* RTL layout */
     background: var(--panel-bg);
-    backdrop-filter: blur(10px);
+    /* Will be white in light mode */
+    backdrop-filter: blur(16px);
     transition: all 0.3s ease;
     display: flex;
     flex-direction: column;

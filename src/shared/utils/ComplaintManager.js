@@ -84,9 +84,9 @@ export const ComplaintManager = {
             .select(`
         *,
         type:complaint_types (name, fields),
-        agent:users!agent_id (name),
-        resolver:users!resolved_by (name),
-        last_actor:users!last_action_by (name)
+        agent:users!agent_id (id, name),
+        resolver:users!resolved_by (id, name),
+        last_actor:users!last_action_by (id, name)
       `)
             .order('created_at', { ascending: false })
             .limit(limit);
@@ -220,6 +220,16 @@ export const ComplaintManager = {
         const newCount = (current?.reminder_count || 0) + 1;
         const currentLogs = current?.reminder_logs || [];
 
+        // Check for cooldown (5 minutes)
+        if (currentLogs.length > 0) {
+            const lastLog = currentLogs[currentLogs.length - 1];
+            const lastTime = new Date(lastLog.timestamp).getTime();
+            const now = new Date().getTime();
+            if (now - lastTime < 5 * 60 * 1000) {
+                throw new Error('Please wait 5 minutes before sending another reminder.');
+            }
+        }
+
         // Add new log entry
         const newLog = {
             agent_name: user?.name || 'Unknown',
@@ -232,7 +242,8 @@ export const ComplaintManager = {
             .from('complaints')
             .update({
                 reminder_count: newCount,
-                reminder_logs: newLogs
+                reminder_logs: newLogs,
+                // Force update 'updated_at' to trigger realtime if needed (though Supabase usually handles this)
             })
             .eq('id', id)
             .select()

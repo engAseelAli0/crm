@@ -80,7 +80,7 @@ export const NAVIGATION_CONFIG = [
     {
         id: 'tracking',
         label: 'sidebar.tracking',
-        fallbackLabel: 'تتبع العملاء',
+        fallbackLabel: 'تتبع الموظفين',
         icon: MapIcon,
         defaultAllowed: ['ADMIN']
     },
