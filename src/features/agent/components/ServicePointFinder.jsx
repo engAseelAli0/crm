@@ -18,8 +18,9 @@ const ServicePointFinder = () => {
     const [selectedGov, setSelectedGov] = useState('');
     const [selectedDist, setSelectedDist] = useState('');
     // Rating Filters
-    const [filterDeposit, setFilterDeposit] = useState('');
-    const [filterRegistration, setFilterRegistration] = useState('');
+
+    // Sort
+    const [sortBy, setSortBy] = useState('');
 
     useEffect(() => {
         loadData();
@@ -51,15 +52,29 @@ const ServicePointFinder = () => {
     const filteredPoints = points.filter(p => {
         const matchSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             p.phone?.includes(searchTerm) ||
-            p.address?.toLowerCase().includes(searchTerm.toLowerCase());
+            p.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            p.governorate?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            p.district?.name?.toLowerCase().includes(searchTerm.toLowerCase());
 
         const matchType = filterType === 'All' || p.type === filterType;
         const matchGov = !selectedGov || p.governorate_id === selectedGov;
         const matchDist = !selectedDist || p.district_id === selectedDist;
-        const matchDeposit = !filterDeposit || p.deposit_withdrawal === filterDeposit;
-        const matchRegistration = !filterRegistration || p.registration_activation === filterRegistration;
 
-        return matchSearch && matchType && matchGov && matchDist && matchDeposit && matchRegistration;
+        return matchSearch && matchType && matchGov && matchDist;
+    });
+
+    // Apply Sorting
+    const sortedPoints = [...filteredPoints].sort((a, b) => {
+        if (sortBy === 'activations') {
+            return (b.activations_count || 0) - (a.activations_count || 0);
+        }
+        if (sortBy === 'withdrawals') {
+            return (b.cash_withdrawal_count || 0) - (a.cash_withdrawal_count || 0);
+        }
+        if (sortBy === 'deposits') {
+            return (b.deposit_count || 0) - (a.deposit_count || 0);
+        }
+        return 0; // Default order
     });
 
     const copyToClipboard = (text, label) => {
@@ -166,33 +181,51 @@ const ServicePointFinder = () => {
                     </div>
                 </div>
 
-                {/* Advanced Rating Filters */}
+                {/* Sorting Controls */}
                 <div className={styles.searchContainer} style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(148, 163, 184, 0.1)' }}>
-                    <div className={styles.selectField}>
-                        <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px', display: 'block' }}>سحب وإيداع:</span>
-                        <select
-                            value={filterDeposit}
-                            onChange={(e) => setFilterDeposit(e.target.value)}
-                            className={styles.selectInput}
-                        >
-                            <option value="">(الكل)</option>
-                            <option value="ممتاز">ممتاز</option>
-                            <option value="جيد">جيد</option>
-                            <option value="ضعيف">ضعيف</option>
-                        </select>
-                    </div>
-                    <div className={styles.selectField}>
-                        <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px', display: 'block' }}>تسجيل وتفعيل:</span>
-                        <select
-                            value={filterRegistration}
-                            onChange={(e) => setFilterRegistration(e.target.value)}
-                            className={styles.selectInput}
-                        >
-                            <option value="">(الكل)</option>
-                            <option value="ممتاز">ممتاز</option>
-                            <option value="جيد">جيد</option>
-                            <option value="ضعيف">ضعيف</option>
-                        </select>
+                    <div className={styles.selectField} style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                            <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>ترتيب حسب الأعلى:</span>
+
+                            <button
+                                onClick={() => setSortBy('activations')}
+                                style={{
+                                    padding: '6px 12px', borderRadius: '20px', fontSize: '0.85rem', cursor: 'pointer', border: 'none',
+                                    background: sortBy === 'activations' ? 'rgba(96, 165, 250, 0.2)' : 'rgba(255,255,255,0.05)',
+                                    color: sortBy === 'activations' ? '#60a5fa' : '#cbd5e1',
+                                    fontWeight: sortBy === 'activations' ? 'bold' : 'normal'
+                                }}>
+                                التفعيلات
+                            </button>
+
+                            <button
+                                onClick={() => setSortBy('withdrawals')}
+                                style={{
+                                    padding: '6px 12px', borderRadius: '20px', fontSize: '0.85rem', cursor: 'pointer', border: 'none',
+                                    background: sortBy === 'withdrawals' ? 'rgba(96, 165, 250, 0.2)' : 'rgba(255,255,255,0.05)',
+                                    color: sortBy === 'withdrawals' ? '#60a5fa' : '#cbd5e1',
+                                    fontWeight: sortBy === 'withdrawals' ? 'bold' : 'normal'
+                                }}>
+                                السحب النقدي
+                            </button>
+
+                            <button
+                                onClick={() => setSortBy('deposits')}
+                                style={{
+                                    padding: '6px 12px', borderRadius: '20px', fontSize: '0.85rem', cursor: 'pointer', border: 'none',
+                                    background: sortBy === 'deposits' ? 'rgba(96, 165, 250, 0.2)' : 'rgba(255,255,255,0.05)',
+                                    color: sortBy === 'deposits' ? '#60a5fa' : '#cbd5e1',
+                                    fontWeight: sortBy === 'deposits' ? 'bold' : 'normal'
+                                }}>
+                                الإيداع
+                            </button>
+
+                            {sortBy && (
+                                <button onClick={() => setSortBy('')} style={{ fontSize: '0.75rem', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', marginLeft: 'auto' }}>
+                                    إلغاء الترتيب
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -204,7 +237,7 @@ const ServicePointFinder = () => {
                         <div className={styles.spinner}></div>
                         <p>جاري جلب البيانات...</p>
                     </div>
-                ) : filteredPoints.length === 0 ? (
+                ) : sortedPoints.length === 0 ? (
                     <div className={styles.emptyState}>
                         <div className={styles.emptyIcon}>
                             <Search size={40} />
@@ -214,7 +247,7 @@ const ServicePointFinder = () => {
                             <p style={{ marginTop: '0.5rem' }}>حاول تغيير كلمات البحث أو إزالة بعض الفلاتر.</p>
                         </div>
                         <button
-                            onClick={() => { setSearchTerm(''); setSelectedGov(''); setFilterType('All'); }}
+                            onClick={() => { setSearchTerm(''); setSelectedGov(''); setFilterType('All'); setSortBy(''); }}
                             className={`${styles.btn} ${styles.btnCopy}`}
                         >
                             مسح الفلاتر
@@ -222,7 +255,7 @@ const ServicePointFinder = () => {
                     </div>
                 ) : (
                     <div className={styles.gridContainer}>
-                        {filteredPoints.map((point, index) => (
+                        {sortedPoints.map((point, index) => (
                             <div
                                 key={point.id}
                                 className={styles.card}
@@ -267,20 +300,20 @@ const ServicePointFinder = () => {
                                         </div>
                                     </div>
 
-                                    {/* Services Ratings (New Design) */}
+                                    {/* Stats Grid (Updated to show counts) */}
                                     {point.type === 'Agent' && (
-                                        <div className={styles.servicesGrid}>
-                                            <div className={styles.serviceRatingRow}>
-                                                <span className={styles.serviceLabel}>سحب وإيداع:</span>
-                                                <span className={`${styles.ratingValue} ${getRatingClass(point.deposit_withdrawal)}`}>
-                                                    {point.deposit_withdrawal || 'غير محدد'}
-                                                </span>
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginBottom: '1.5rem', background: 'rgba(255,255,255,0.03)', padding: '0.75rem', borderRadius: '12px' }}>
+                                            <div style={{ textAlign: 'center' }}>
+                                                <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: '4px' }}>التفعيلات</div>
+                                                <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#e2e8f0' }}>{point.activations_count || 0}</div>
                                             </div>
-                                            <div className={styles.serviceRatingRow}>
-                                                <span className={styles.serviceLabel}>تسجيل وتفعيل:</span>
-                                                <span className={`${styles.ratingValue} ${getRatingClass(point.registration_activation)}`}>
-                                                    {point.registration_activation || 'غير محدد'}
-                                                </span>
+                                            <div style={{ textAlign: 'center', borderRight: '1px solid rgba(255,255,255,0.1)', borderLeft: '1px solid rgba(255,255,255,0.1)' }}>
+                                                <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: '4px' }}>سحب</div>
+                                                <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#e2e8f0' }}>{point.cash_withdrawal_count || 0}</div>
+                                            </div>
+                                            <div style={{ textAlign: 'center' }}>
+                                                <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: '4px' }}>إيداع</div>
+                                                <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#e2e8f0' }}>{point.deposit_count || 0}</div>
                                             </div>
                                         </div>
                                     )}

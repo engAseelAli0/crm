@@ -72,7 +72,12 @@ const ServicePointsManager = () => {
             phone: formData.get('phone'),
             address: formData.get('address'),
             google_map_link: formData.get('google_map_link'),
-            working_hours: formData.get('working_hours')
+            working_hours: formData.get('working_hours'),
+            // New Fields
+            record_date: formData.get('record_date'),
+            activations_count: parseInt(formData.get('activations_count') || 0),
+            cash_withdrawal_count: parseInt(formData.get('cash_withdrawal_count') || 0),
+            deposit_count: parseInt(formData.get('deposit_count') || 0)
         };
 
         if (editingPoint) {
@@ -95,10 +100,51 @@ const ServicePointsManager = () => {
         const reader = new FileReader();
         reader.onload = (evt) => {
             const bstr = evt.target.result;
+
             const wb = XLSX.read(bstr, { type: 'binary' });
             const wsname = wb.SheetNames[0];
             const ws = wb.Sheets[wsname];
-            const data = XLSX.utils.sheet_to_json(ws);
+
+            // Parse as array of arrays to safely find header row
+            const rawData = XLSX.utils.sheet_to_json(ws, { header: 1 });
+
+            // Find header row index
+            let headerRowIndex = -1;
+            for (let i = 0; i < rawData.length; i++) {
+                const row = rawData[i];
+                // Look for known columns like 'الوكيل' or 'Name' or 'الاسم'
+                if (row && row.some(cell => cell && typeof cell === 'string' && (cell.includes('الوكيل') || cell.includes('Name') || cell.includes('الاسم')))) {
+                    headerRowIndex = i;
+                    break;
+                }
+            }
+
+            if (headerRowIndex === -1) {
+                // Fallback: try to process as normal if we couldn't find specific header
+                const data = XLSX.utils.sheet_to_json(ws);
+                processImportData(data);
+                return;
+            }
+
+            // Construct objects based on found header
+            const headers = rawData[headerRowIndex];
+            const data = [];
+
+            for (let i = headerRowIndex + 1; i < rawData.length; i++) {
+                const row = rawData[i];
+                if (!row || row.length === 0) continue;
+
+                const obj = {};
+                headers.forEach((h, index) => {
+                    if (h) {
+                        // Trim header to avoid spacing issues
+                        const cleanHeader = h.toString().trim();
+                        obj[cleanHeader] = row[index];
+                    }
+                });
+                data.push(obj);
+            }
+
             processImportData(data);
         };
         reader.readAsBinaryString(file);
@@ -110,6 +156,34 @@ const ServicePointsManager = () => {
             .replace(/[أإآ]/g, 'ا')
             .replace(/ة/g, 'ه')
             .replace(/ى/g, 'ي');
+    };
+
+    const parseDate = (dateRaw) => {
+        if (!dateRaw) return null;
+
+        let dateStr = dateRaw.toString().trim();
+
+        // Handle Excel numeric date (if parsing raw values)
+        if (typeof dateRaw === 'number') {
+            // Excel date to JS date
+            const date = new Date((dateRaw - (25567 + 2)) * 86400 * 1000);
+            return date.toISOString().split('T')[0];
+        }
+
+        // Handle "MM/YYYY" or "M/YYYY"
+        if (/^\d{1,2}\/\d{4}$/.test(dateStr)) {
+            const [month, year] = dateStr.split('/');
+            return `${year}-${month.padStart(2, '0')}-01`;
+        }
+
+        // Handle "DD/MM/YYYY" or "YYYY-MM-DD" parsing attempts
+        const d = new Date(dateStr);
+        if (!isNaN(d.getTime())) {
+            return d.toISOString().split('T')[0];
+        }
+
+        // Return null if invalid, or maybe current date? Let's return null to avoid bad data
+        return null;
     };
 
     const processImportData = async (json) => {
@@ -125,15 +199,23 @@ const ServicePointsManager = () => {
         const govMap = {};
         locations.forEach(l => { govMap[normalizeText(l.name)] = l; });
 
+        // DEBUG: Log the first row keys to see what we are getting
+        if (json.length > 0) {
+            console.log('Excel Import Debug - First Row Keys:', Object.keys(json[0]));
+            console.log('Excel Import Debug - First Row Data:', json[0]);
+        }
+
         for (const row of json) {
-            const name = row['الاسم'] || row['Name'] || row['اسم الوكيل'];
+            // Support new Excel format columns
+            const name = row['الاسم'] || row['Name'] || row['اسم الوكيل'] || row['الوكيل'];
             const typeRaw = row['النوع'] || row['Type'] || 'Agent';
 
             // Skip invalid rows
             if (!name) continue;
 
-            const govName = row['المحافظة'] || row['Governorate'];
-            const distName = row['المديرية'] || row['District'];
+            // Support new column names: المناطقة (governorate), البنديه (district)
+            const govName = row['المحافظة'] || row['Governorate'] || row['المناطقة'];
+            const distName = row['المديرية'] || row['District'] || row['البنديه'];
 
             if (!govName || !distName) continue; // Basic validation
 
@@ -240,15 +322,23 @@ const ServicePointsManager = () => {
 
             // Re-normalize to be safe
             for (const row of data) {
-                const name = row['الاسم'] || row['Name'] || row['اسم الوكيل'];
+                // Support both old and new Excel column names
+                const name = row['الاسم'] || row['Name'] || row['اسم الوكيل'] || row['الوكيل'];
                 const typeRaw = row['النوع'] || row['Type'] || 'Agent';
-                const govName = row['المحافظة'] || row['Governorate'];
-                const distName = row['المديرية'] || row['District'];
+                const govName = row['المحافظة'] || row['Governorate'] || row['المناطقة'];
+                const distName = row['المديرية'] || row['District'] || row['البنديه'];
                 const phone = row['الهاتف'] || row['Phone'] || row['رقم الهاتف'];
                 const address = row['العنوان'] || row['Address'];
                 const mapLink = row['الموقع'] || row['Map'] || row['رابط الموقع'];
 
-                // New Ratings
+                // New fields from updated Excel format
+                const dateValue = row['التاريخ'] || row['Date'];
+                // Handle typo 'عدد التتفعيلات' (double Ta) seen in user debug
+                const activationsCount = parseInt(row['عدد التفعيلات'] || row['عدد التتفعيلات'] || row['ActivationsCount'] || row['عدد التنبيهات'] || 0) || 0;
+                const cashWithdrawalCount = parseInt(row['عدد عمليات السحب النقدي'] || row['CashWithdrawalCount'] || 0) || 0;
+                const depositCount = parseInt(row['عدد عمليات الإيداع'] || row['DepositCount'] || 0) || 0;
+
+                // Old Ratings (keep for backward compatibility)
                 const depositRating = row['سحب وايداع'] || row['DepositStatus'];
                 const regRating = row['تسجيل وتفعيل'] || row['RegistrationStatus'];
 
@@ -266,7 +356,12 @@ const ServicePointsManager = () => {
                             address,
                             google_map_link: mapLink,
                             deposit_withdrawal: depositRating,
-                            registration_activation: regRating
+                            registration_activation: regRating,
+                            // New fields
+                            record_date: parseDate(dateValue),
+                            activations_count: activationsCount,
+                            cash_withdrawal_count: cashWithdrawalCount,
+                            deposit_count: depositCount
                         });
                     }
                 }
@@ -291,8 +386,18 @@ const ServicePointsManager = () => {
 
     const downloadTemplate = () => {
         const wb = XLSX.utils.book_new();
+        // Updated template with new fields matching the image format
         const ws = XLSX.utils.json_to_sheet([
-            { 'الاسم': 'مثال وكيل', 'النوع': 'وكيل', 'المحافظة': 'صنعاء', 'المديرية': 'السبعين', 'الهاتف': '777000000', 'العنوان': 'شارع حدة', 'الموقع': 'http://maps...' }
+            {
+                'التاريخ': '11/2025',
+                'الوكيل': 'مثال وكيل',
+                'المناطقة': 'أمانة العاصمة',
+                'البنديه': 'الوحدة',
+                'العنوان': 'شارع حدة - جوار الجامع',
+                'عدد التفعيلات': 0,
+                'عدد عمليات السحب النقدي': 0,
+                'عدد عمليات الإيداع': 0
+            }
         ]);
         XLSX.utils.book_append_sheet(wb, ws, "Template");
         XLSX.writeFile(wb, "ServicePoints_Template.xlsx");
@@ -540,6 +645,28 @@ const ServicePointsManager = () => {
                     <div>
                         <label style={{ display: 'block', marginBottom: '0.5rem', color: '#cbd5e1' }}>رابط الموقع (Google Maps)</label>
                         <input name="google_map_link" defaultValue={editingPoint?.google_map_link} type="url" dir="ltr" style={{ ...inputStyle, textAlign: 'left' }} placeholder="https://maps.google.com/..." />
+                    </div>
+
+                    <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <h4 style={{ margin: '0 0 1rem 0', color: '#94a3b8', fontSize: '0.9rem' }}>بيانات العمليات والتفعيلات</h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '0.5rem', color: '#cbd5e1' }}>تاريخ السجل</label>
+                                <input name="record_date" defaultValue={editingPoint?.record_date} type="text" style={inputStyle} placeholder="MM/YYYY or Date" />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '0.5rem', color: '#cbd5e1' }}>عدد التفعيلات</label>
+                                <input name="activations_count" defaultValue={editingPoint?.activations_count || 0} type="number" min="0" style={inputStyle} />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '0.5rem', color: '#cbd5e1' }}>عدد عمليات السحب</label>
+                                <input name="cash_withdrawal_count" defaultValue={editingPoint?.cash_withdrawal_count || 0} type="number" min="0" style={inputStyle} />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '0.5rem', color: '#cbd5e1' }}>عدد عمليات الإيداع</label>
+                                <input name="deposit_count" defaultValue={editingPoint?.deposit_count || 0} type="number" min="0" style={inputStyle} />
+                            </div>
+                        </div>
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
