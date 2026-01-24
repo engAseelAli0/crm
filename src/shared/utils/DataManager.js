@@ -1,6 +1,39 @@
 import { supabase } from '../../lib/supabase';
 import { LogManager } from './LogManager';
 
+// === Smart Cache System ===
+const Cache = {
+  data: {},
+  timestamps: {},
+  
+  // Set cache with TTL (Time To Live) in milliseconds
+  set: (key, value, ttlMs = 5 * 60 * 1000) => {
+    Cache.data[key] = value;
+    Cache.timestamps[key] = Date.now() + ttlMs;
+  },
+  
+  // Get cache if valid
+  get: (key) => {
+    if (Cache.data[key] && Cache.timestamps[key] > Date.now()) {
+      return Cache.data[key];
+    }
+    // Cache expired or doesn't exist
+    return null;
+  },
+  
+  // Force invalidate cache
+  invalidate: (key) => {
+    delete Cache.data[key];
+    delete Cache.timestamps[key];
+  },
+  
+  // Clear all cache
+  clear: () => {
+    Cache.data = {};
+    Cache.timestamps = {};
+  }
+};
+
 export const DataManager = {
   // --- Initialization ---
   seed: () => {
@@ -364,8 +397,21 @@ export const DataManager = {
     }
   },
 
-  // --- Knowledge Base ---
-  getKnowledgeBase: async () => {
+  // --- Knowledge Base (with Caching) ---
+  getKnowledgeBase: async (forceRefresh = false) => {
+    const CACHE_KEY = 'knowledge_base';
+    const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+    
+    // Check cache first (unless force refresh)
+    if (!forceRefresh) {
+      const cached = Cache.get(CACHE_KEY);
+      if (cached) {
+        console.log('[Cache] Knowledge Base loaded from cache');
+        return cached;
+      }
+    }
+    
+    // Fetch from server
     const { data, error } = await supabase
       .from('knowledge_base')
       .select('*')
@@ -375,7 +421,13 @@ export const DataManager = {
       console.error('Error fetching knowledge base:', error);
       return [];
     }
-    return data || [];
+    
+    // Store in cache
+    const result = data || [];
+    Cache.set(CACHE_KEY, result, CACHE_TTL);
+    console.log('[Cache] Knowledge Base fetched and cached');
+    
+    return result;
   },
 
   addKnowledgeBaseItem: async (item) => {
@@ -390,6 +442,9 @@ export const DataManager = {
       console.error('Error adding KB item:', error.message, error);
       return null;
     }
+    
+    // Invalidate cache so next fetch gets fresh data
+    Cache.invalidate('knowledge_base');
     return data;
   },
 
@@ -400,6 +455,9 @@ export const DataManager = {
       .eq('id', id);
 
     if (error) console.error('Error updating KB item:', error);
+    
+    // Invalidate cache
+    Cache.invalidate('knowledge_base');
     return error;
   },
 
@@ -410,6 +468,9 @@ export const DataManager = {
       .eq('id', id);
 
     if (error) console.error('Error deleting KB item:', error);
+    
+    // Invalidate cache
+    Cache.invalidate('knowledge_base');
     return error;
   },
 

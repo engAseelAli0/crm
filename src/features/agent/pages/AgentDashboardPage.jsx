@@ -3,7 +3,7 @@ import {
     LayoutDashboard, Phone, Users, FileText, Settings, LogOut, Bell, Search, Menu, X,
     ChevronLeft, ChevronRight, BarChart2, MessageSquare, ShieldCheck, Clock, CheckCircle,
     AlertCircle, Play, Mic, Square, Save, RotateCcw, Share2, BookOpen, Headset, ArrowLeft,
-    UserCheck, HelpCircle
+    UserCheck, HelpCircle, Smartphone, PhoneCall, Activity
 } from 'lucide-react';
 
 import { DataManager } from '../../../shared/utils/DataManager';

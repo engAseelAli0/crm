@@ -193,8 +193,175 @@ const KnowledgeBaseManager = () => {
                 />
             </div>
 
+            {/* Loading State */}
+            {isLoading && (
+                <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '4rem 2rem',
+                    gap: '2rem'
+                }}>
+                    {/* Animated Loader */}
+                    <div style={{
+                        position: 'relative',
+                        width: '80px',
+                        height: '80px'
+                    }}>
+                        {/* Outer Ring */}
+                        <div style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%',
+                            border: '4px solid rgba(96, 165, 250, 0.1)',
+                            borderRadius: '50%'
+                        }} />
+                        {/* Spinning Ring */}
+                        <div style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%',
+                            border: '4px solid transparent',
+                            borderTopColor: '#60a5fa',
+                            borderRadius: '50%',
+                            animation: 'kb-spin 1s linear infinite'
+                        }} />
+                        {/* Inner Pulsing Circle */}
+                        <div style={{
+                            position: 'absolute',
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            width: '40px',
+                            height: '40px',
+                            background: 'linear-gradient(135deg, #3b82f6, #60a5fa)',
+                            borderRadius: '50%',
+                            animation: 'kb-pulse 1.5s ease-in-out infinite',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}>
+                            <BookOpen size={20} color="white" />
+                        </div>
+                    </div>
+
+                    {/* Loading Text */}
+                    <div style={{ textAlign: 'center' }}>
+                        <p style={{
+                            color: '#f1f5f9',
+                            fontSize: '1.2rem',
+                            fontWeight: '600',
+                            marginBottom: '0.5rem'
+                        }}>
+                            جاري تحميل الدليل الشامل...
+                        </p>
+                        <p style={{
+                            color: '#94a3b8',
+                            fontSize: '0.9rem'
+                        }}>
+                            يرجى الانتظار قليلاً
+                        </p>
+                    </div>
+
+                    {/* Skeleton Cards */}
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                        gap: '1.5rem',
+                        width: '100%'
+                    }}>
+                        {[1, 2, 3, 4, 5, 6].map(i => (
+                            <div key={i} style={{
+                                background: 'rgba(30, 41, 59, 0.4)',
+                                borderRadius: '16px',
+                                border: '1px solid rgba(148, 163, 184, 0.1)',
+                                overflow: 'hidden'
+                            }}>
+                                {/* Image Skeleton */}
+                                <div style={{
+                                    height: '160px',
+                                    background: 'linear-gradient(90deg, rgba(30, 41, 59, 0.5) 25%, rgba(51, 65, 85, 0.5) 50%, rgba(30, 41, 59, 0.5) 75%)',
+                                    backgroundSize: '200% 100%',
+                                    animation: 'kb-shimmer 1.5s infinite'
+                                }} />
+                                <div style={{ padding: '1.5rem' }}>
+                                    {/* Title Skeleton */}
+                                    <div style={{
+                                        height: '24px',
+                                        background: 'linear-gradient(90deg, rgba(51, 65, 85, 0.5) 25%, rgba(71, 85, 105, 0.5) 50%, rgba(51, 65, 85, 0.5) 75%)',
+                                        backgroundSize: '200% 100%',
+                                        animation: 'kb-shimmer 1.5s infinite',
+                                        borderRadius: '8px',
+                                        marginBottom: '1rem',
+                                        width: '80%'
+                                    }} />
+                                    {/* Text Lines Skeleton */}
+                                    <div style={{
+                                        height: '14px',
+                                        background: 'linear-gradient(90deg, rgba(51, 65, 85, 0.3) 25%, rgba(71, 85, 105, 0.3) 50%, rgba(51, 65, 85, 0.3) 75%)',
+                                        backgroundSize: '200% 100%',
+                                        animation: 'kb-shimmer 1.5s infinite',
+                                        borderRadius: '6px',
+                                        marginBottom: '0.5rem'
+                                    }} />
+                                    <div style={{
+                                        height: '14px',
+                                        background: 'linear-gradient(90deg, rgba(51, 65, 85, 0.3) 25%, rgba(71, 85, 105, 0.3) 50%, rgba(51, 65, 85, 0.3) 75%)',
+                                        backgroundSize: '200% 100%',
+                                        animation: 'kb-shimmer 1.5s infinite',
+                                        borderRadius: '6px',
+                                        marginBottom: '0.5rem',
+                                        width: '90%'
+                                    }} />
+                                    <div style={{
+                                        height: '14px',
+                                        background: 'linear-gradient(90deg, rgba(51, 65, 85, 0.3) 25%, rgba(71, 85, 105, 0.3) 50%, rgba(51, 65, 85, 0.3) 75%)',
+                                        backgroundSize: '200% 100%',
+                                        animation: 'kb-shimmer 1.5s infinite',
+                                        borderRadius: '6px',
+                                        width: '60%'
+                                    }} />
+                                    {/* Button Skeleton */}
+                                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+                                        {[1, 2, 3].map(j => (
+                                            <div key={j} style={{
+                                                width: '32px',
+                                                height: '32px',
+                                                background: 'rgba(51, 65, 85, 0.3)',
+                                                borderRadius: '8px'
+                                            }} />
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* CSS Animations */}
+                    <style>{`
+                        @keyframes kb-spin {
+                            0% { transform: rotate(0deg); }
+                            100% { transform: rotate(360deg); }
+                        }
+                        @keyframes kb-pulse {
+                            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+                            50% { transform: translate(-50%, -50%) scale(0.9); opacity: 0.7; }
+                        }
+                        @keyframes kb-shimmer {
+                            0% { background-position: 200% 0; }
+                            100% { background-position: -200% 0; }
+                        }
+                    `}</style>
+                </div>
+            )}
+
             {/* Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
+            {!isLoading && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
                 {filteredItems.map(item => (
                     <div key={item.id} style={{
                         background: 'rgba(30, 41, 59, 0.4)',
@@ -273,7 +440,7 @@ const KnowledgeBaseManager = () => {
                         </div>
                     </div>
                 ))}
-            </div>
+            </div>}
 
             {/* Add/Edit Modal */}
             <Modal

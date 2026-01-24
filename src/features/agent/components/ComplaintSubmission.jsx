@@ -229,12 +229,31 @@ const ComplaintSubmission = ({ user }) => {
                 </div>
             );
         } else {
+            // For number inputs, use type="text" with inputMode to avoid spinners
+            // Also prevent scroll wheel from changing value
+            const isNumber = field.type === 'number';
             return (
                 <input
-                    type={field.type}
+                    type={isNumber ? 'text' : field.type}
+                    inputMode={isNumber ? 'numeric' : undefined}
+                    pattern={isNumber ? '[0-9]*' : undefined}
                     value={value}
-                    onChange={onChange}
-                    style={commonStyle}
+                    onChange={(e) => {
+                        if (isNumber) {
+                            // Only allow numbers
+                            const numericValue = e.target.value.replace(/[^0-9]/g, '');
+                            handleDynamicChange(field.id, numericValue);
+                        } else {
+                            onChange(e);
+                        }
+                    }}
+                    onWheel={(e) => e.target.blur()} // Prevent scroll changing value
+                    style={{
+                        ...commonStyle,
+                        // Hide spinners with CSS
+                        MozAppearance: 'textfield',
+                        WebkitAppearance: 'none'
+                    }}
                 />
             );
         }
@@ -328,6 +347,7 @@ const ComplaintSubmission = ({ user }) => {
         setCustomerNumber('');
         setSelectedType('');
         setDynamicData({});
+        setNotes(''); // Clear notes too!
     };
 
     const handleShare = async (complaint) => {

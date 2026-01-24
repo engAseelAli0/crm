@@ -7,7 +7,7 @@ const Select = ({
     options = [],
     value,
     onChange,
-    placeholder = "اختر...",
+    placeholder = "الكل",
     icon: Icon,
     disabled = false,
     searchable = false,
