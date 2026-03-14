@@ -103,7 +103,7 @@ const AgentDashboardPage = ({ user, onLogout }) => {
         }
     }, [activeTab]);
 
-    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
 
     // Sidebar Toggle
@@ -442,7 +442,11 @@ const AgentDashboardPage = ({ user, onLogout }) => {
 
     return (
         <div className={styles.container}>
-            <aside className={`${styles.sidebar} ${sidebarCollapsed ? styles.sidebarCollapsed : ''}`}>
+            <aside 
+                className={`${styles.sidebar} ${sidebarCollapsed ? styles.sidebarCollapsed : ''}`}
+                onMouseEnter={() => setSidebarCollapsed(false)}
+                onMouseLeave={() => setSidebarCollapsed(true)}
+            >
                 <div style={{
                     marginTop: '2rem', marginBottom: '2rem', padding: '0 1rem',
                     color: '#818cf8', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 'bold', fontSize: '1.2rem'

@@ -76,6 +76,7 @@ const ComplaintExportModal = ({ isOpen, onClose, complaints, types }) => {
                 { label: 'المدة', key: 'duration' },
                 { label: t('complaints.closureReason'), key: 'closure_reason' },
                 { label: t('complaints.closedBy'), key: 'resolver_name' },
+                { label: 'المعلق', key: 'suspended_by' },
                 { label: t('complaints.notes'), key: 'notes' }
             ];
 
@@ -93,6 +94,7 @@ const ComplaintExportModal = ({ isOpen, onClose, complaints, types }) => {
                 duration: calculateDuration(c.created_at, c.resolved_at),
                 closure_reason: c.closure_reason || '-',
                 resolver_name: c.resolver?.name || '-',
+                suspended_by: c.last_actor?.name || '-', // Usually the person who performed the last action is the suspendor if it's suspended
                 notes: c.notes || '-'
             }));
 

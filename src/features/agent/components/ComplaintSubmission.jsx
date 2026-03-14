@@ -32,7 +32,7 @@ const ComplaintSubmission = ({ user }) => {
     const [filteredComplaints, setFilteredComplaints] = useState([]); // Filtered list for display
     const [searchTerm, setSearchTerm] = useState('');
     const [viewMode, setViewMode] = useState('active'); // 'active' | 'resolved'
-    // Default filter date to today (YYYY-MM-DD)
+    const [lastActedId, setLastActedId] = useState(null); // Highlight acted-upon item
     // Default filter date to empty (All time)
     // Default filter date to empty (All time)
     const [filterDate, setFilterDate] = useState('');
@@ -50,6 +50,32 @@ const ComplaintSubmission = ({ user }) => {
     const [isClosureModalOpen, setIsClosureModalOpen] = useState(false);
     const [closingComplaint, setClosingComplaint] = useState(null);
     const [closureReason, setClosureReason] = useState('');
+
+    const handleUpdateStatusClient = async (complaint, newStatus, reason) => {
+        try {
+            const updates = { status: newStatus, last_action_by: user ? user.id : null };
+            if (newStatus === 'Resolved' && reason) {
+                updates.closure_reason = reason;
+                updates.resolved_at = new Date().toISOString();
+                updates.resolved_by = user ? user.id : null;
+            }
+            
+            await ComplaintManager.updateComplaint(complaint.id, updates);
+            toast.success(t('common.success'), 'تم الإغلاق بنجاح');
+            
+            // OPTIMISTIC UPDATE
+            setMyComplaints(prev => prev.map(c => 
+                c.id === complaint.id ? { ...c, ...updates, resolved_at: updates.resolved_at || c.resolved_at } : c
+            ));
+            
+            setLastActedId(complaint.id);
+            setTimeout(() => setLastActedId(null), 3000);
+        } catch (error) {
+            console.error(error);
+            toast.error(t('common.error'), 'فشل التحديث');
+        }
+    };
+
 
     useEffect(() => {
         loadTypes();
@@ -196,7 +222,8 @@ const ComplaintSubmission = ({ user }) => {
             width: '100%', padding: '0.8rem',
             background: 'rgba(15, 23, 42, 0.6)',
             border: '1px solid rgba(255, 255, 255, 0.1)',
-            borderRadius: '8px', color: 'white', fontSize: '1rem'
+            borderRadius: '8px', color: 'white', fontSize: '1rem',
+            colorScheme: 'dark'
         };
 
         if (field.type === 'textarea') {
@@ -240,8 +267,13 @@ const ComplaintSubmission = ({ user }) => {
                     value={value}
                     onChange={(e) => {
                         if (isNumber) {
-                            // Only allow numbers
-                            const numericValue = e.target.value.replace(/[^0-9]/g, '');
+                            // Allow numbers and a single decimal point
+                            let numericValue = e.target.value.replace(/[^0-9.]/g, '');
+                            // Prevent multiple decimal points
+                            const parts = numericValue.split('.');
+                            if (parts.length > 2) {
+                                numericValue = parts[0] + '.' + parts.slice(1).join('');
+                            }
                             handleDynamicChange(field.id, numericValue);
                         } else {
                             onChange(e);
@@ -305,6 +337,33 @@ const ComplaintSubmission = ({ user }) => {
                 setActiveTab('history'); // Go to history to see changes
                 loadHistory(); // Refresh list
             } else {
+                // CHECK FOR DUPLICATES FIRST
+                // We fetch check directly from DB to avoid client-side state lag
+                try {
+                    const { data: existingComplaints, error: dupCheckError } = await supabase
+                        .from('complaints')
+                        .select('id, form_data')
+                        .eq('customer_number', customerNumber)
+                        .eq('type_id', selectedType)
+                        .in('status', ['Pending', 'Processing', 'Suspended']);
+                    
+                    if (!dupCheckError && existingComplaints && existingComplaints.length > 0) {
+                        // Further compare JSON data client-side for accuracy
+                        const currentDataStr = JSON.stringify(dynamicData);
+                        const isDuplicate = existingComplaints.some(c => JSON.stringify(c.form_data) === currentDataStr);
+
+                        if (isDuplicate) {
+                            toast.error('تنبيه', 'يوجد شكوى مشابهة مسجلة مسبقاً وما زالت قيد المعالجة');
+                            setIsSubmitting(false);
+                            return;
+                        }
+                    }
+                } catch (err) {
+                    console.error("Error checking duplicates", err);
+                    // Proceed anyway if duplicate check fails to avoid blocking legitimate submissions
+                }
+
+
                 // CREATE NEW
                 const newComplaint = {
                     ...submission,
@@ -879,16 +938,17 @@ const ComplaintSubmission = ({ user }) => {
                             background: 'rgba(30, 41, 59, 0.5)',
                             backdropFilter: 'blur(10px)',
                             borderRadius: '16px',
-                            overflow: 'hidden',
+                            overflowX: 'auto',
                             border: '1px solid rgba(255, 255, 255, 0.05)'
                         }}>
                             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                 <thead style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
                                     <tr>
-                                        <th style={{ padding: '1rem', textAlign: 'right', color: '#94a3b8' }}>{t('complaints.customerName')}</th>
+                                        <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8' }}>#</th>
                                         <th style={{ padding: '1rem', textAlign: 'right', color: '#94a3b8' }}>{t('complaints.customerPhone')}</th>
                                         <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8' }}>{t('complaints.raisedBy')}</th>
                                         <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8' }}>{t('complaints.type')}</th>
+                                        <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8' }}>التفاصيل (الفئة الفرعية)</th>
                                         <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8' }}>تاريخ الرفع</th>
                                         <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8' }}>تاريخ الإغلاق</th>
                                         <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8' }}>بواسطة</th>
@@ -901,12 +961,17 @@ const ComplaintSubmission = ({ user }) => {
                                     {isLoadingHistory ? (
                                         <tr><td colSpan="9" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>{t('common.loading')}</td></tr>
                                     ) : filteredComplaints.length === 0 ? (
-                                        <tr><td colSpan="9" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>{t('complaints.noComplaintsFound')}</td></tr>
+                                        <tr><td colSpan="11" style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>{t('complaints.noComplaintsFound')}</td></tr>
                                     ) : (
-                                        filteredComplaints.map(complaint => (
-                                            <tr key={complaint.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                                                <td style={{ padding: '1rem' }}>
-                                                    <div style={{ fontWeight: '600', color: '#e2e8f0' }}>{complaint.customer_name}</div>
+                                        filteredComplaints.map((complaint, index) => {
+                                            let rowStyle = { borderBottom: '1px solid rgba(255, 255, 255, 0.05)', transition: 'background 0.3s, border-left 0.3s' };
+                                            if (complaint.id === lastActedId) {
+                                                rowStyle = { ...rowStyle, background: 'rgba(56, 189, 248, 0.15)', borderLeft: '4px solid #38bdf8' };
+                                            }
+                                            return (
+                                            <tr key={complaint.id} style={rowStyle}>
+                                                <td style={{ padding: '1rem', textAlign: 'center', fontWeight: 'bold', color: '#94a3b8' }}>
+                                                    {index + 1}
                                                 </td>
                                                 <td style={{ padding: '1rem', color: '#cbd5e1', fontFamily: 'monospace' }}>
                                                     {complaint.customer_number}
@@ -916,6 +981,9 @@ const ComplaintSubmission = ({ user }) => {
                                                 </td>
                                                 <td style={{ padding: '1rem', textAlign: 'center', color: '#cbd5e1' }}>
                                                     {complaint.type?.name || '-'}
+                                                </td>
+                                                <td style={{ padding: '1rem', color: '#f1f5f9', fontSize: '0.9rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={Object.values(complaint.form_data || {})[0] || '-'}>
+                                                    {Object.values(complaint.form_data || {})[0] || '-'}
                                                 </td>
                                                 <td style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem', direction: 'ltr' }}>
                                                     {new Date(complaint.created_at).toLocaleDateString('en-GB')}
@@ -1058,7 +1126,14 @@ const ComplaintSubmission = ({ user }) => {
                                                                                 last_action_by: user ? user.id : null
                                                                             });
                                                                             toast.success('تم', 'تم إعادة فتح الشكوى');
-                                                                            loadHistory();
+                                                                            
+                                                                            // OPTIMISTIC UI UPDATE
+                                                                            setMyComplaints(prev => prev.map(c => 
+                                                                                c.id === complaint.id ? { ...c, status: 'Pending', resolved_by: null, resolved_at: null } : c
+                                                                            ));
+                                                                            
+                                                                            setLastActedId(complaint.id);
+                                                                            setTimeout(() => setLastActedId(null), 3000);
                                                                         } catch (e) { toast.error('خطأ', 'فشل التحديث'); }
                                                                     }}
                                                                     style={{
@@ -1094,9 +1169,19 @@ const ComplaintSubmission = ({ user }) => {
                                                     </div>
                                                 </td>
                                             </tr>
-                                        ))
+                                            );
+                                        })
                                     )}
                                 </tbody>
+                                {filteredComplaints.length > 0 && (
+                                    <tfoot style={{ background: 'rgba(15, 23, 42, 0.8)', borderTop: '2px solid rgba(255, 255, 255, 0.1)' }}>
+                                        <tr>
+                                            <td colSpan="11" style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold', color: '#f8fafc', fontSize: '1.1rem' }}>
+                                                إجمالي الشكاوى: <span style={{ color: '#38bdf8' }}>{filteredComplaints.length}</span>
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                )}
                             </table>
                         </div>
                     </div>
@@ -1246,6 +1331,40 @@ const ComplaintSubmission = ({ user }) => {
                                     border: '1px solid rgba(255, 255, 255, 0.1)',
                                     borderRadius: '8px', color: 'white', marginBottom: '1.5rem'
                                 }}
+                                onKeyDown={async (e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        if (!closureReason.trim()) {
+                                            toast.error(t('common.error'), t('complaints.fillRequired'));
+                                            return;
+                                        }
+                                        try {
+                                            console.log('ComplaintSubmission: Closing complaint', closingComplaint.id, 'with user', user?.id);
+                                            const updates = {
+                                                status: 'Resolved',
+                                                resolved_by: user.id,
+                                                closure_reason: closureReason,
+                                                resolved_at: new Date().toISOString(),
+                                                last_action_by: user.id
+                                            };
+                                            await ComplaintManager.updateComplaint(closingComplaint.id, updates);
+                                            toast.success(t('common.success'), t('complaints.statusUpdateSuccess'));
+                                            setIsClosureModalOpen(false);
+                                            
+                                            // OPTIMISTIC UPDATE
+                                            setMyComplaints(prev => prev.map(c => 
+                                                c.id === closingComplaint.id ? { ...c, ...updates, resolved_at: updates.resolved_at || c.resolved_at } : c
+                                            ));
+                                            
+                                            setLastActedId(closingComplaint.id);
+                                            setTimeout(() => setLastActedId(null), 3000);
+                                        } catch (err) {
+                                            console.error(err);
+                                            toast.error(t('common.error'), t('complaints.updateError'));
+                                        }
+                                    }
+                                }}
+                                autoFocus
                             />
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
                                 <button
@@ -1266,16 +1385,21 @@ const ComplaintSubmission = ({ user }) => {
                                         }
                                         try {
                                             console.log('ComplaintSubmission: Closing complaint', closingComplaint.id, 'with user', user?.id);
-                                            await ComplaintManager.updateComplaint(closingComplaint.id, {
+                                            const updates = {
                                                 status: 'Resolved',
                                                 resolved_by: user.id,
                                                 closure_reason: closureReason,
                                                 resolved_at: new Date().toISOString(),
                                                 last_action_by: user.id
-                                            });
+                                            };
+                                            await ComplaintManager.updateComplaint(closingComplaint.id, updates);
                                             toast.success(t('common.success'), t('complaints.statusUpdateSuccess'));
                                             setIsClosureModalOpen(false);
-                                            loadHistory();
+                                            
+                                            // OPTIMISTIC UPDATE
+                                            setMyComplaints(prev => prev.map(c => 
+                                                c.id === closingComplaint.id ? { ...c, ...updates, resolved_at: updates.resolved_at || c.resolved_at } : c
+                                            ));
                                         } catch (err) {
                                             console.error(err);
                                             toast.error(t('common.error'), t('complaints.updateError'));

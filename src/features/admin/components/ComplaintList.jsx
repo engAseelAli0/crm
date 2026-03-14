@@ -22,6 +22,7 @@ const ComplaintList = ({ user }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [users, setUsers] = useState([]); // For filters
     const complaintsRef = React.useRef(complaints); // Ref to access latest state in callbacks
+    const [lastActedId, setLastActedId] = useState(null); // Highlight acted-upon item
 
     useEffect(() => {
         complaintsRef.current = complaints;
@@ -277,7 +278,24 @@ const ComplaintList = ({ user }) => {
             console.log('ComplaintList: Updating complaint with:', updates);
             await ComplaintManager.updateComplaint(id, updates);
             toast.success(t('common.success'), t('complaints.statusUpdateSuccess'));
-            loadData();
+            
+            // OPTIMISTIC UI UPDATE
+            setComplaints(prev => prev.map(c => {
+                if (c.id === id) {
+                    return { ...c, ...updates, resolved_at: updates.resolved_at || c.resolved_at };
+                }
+                return c;
+            }));
+            
+            setLastActedId(id);
+            
+            // Clear highlight after 3 seconds
+            setTimeout(() => {
+                setLastActedId(null);
+            }, 3000);
+            
+            // NO loadData() here to prevent full refresh
+            // loadData();
         } catch (error) {
             console.error(error);
             toast.error(t('common.error'), t('complaints.updateError'));
@@ -362,6 +380,9 @@ const ComplaintList = ({ user }) => {
         try {
             await ComplaintManager.deleteComplaint(id);
             toast.success(t('common.success'), 'تم حذف الشكوى بنجاح');
+            
+            // OPTIMISTIC UI UPDATE
+            setComplaints(prev => prev.filter(c => c.id !== id));
         } catch (error) {
             console.error(error);
             toast.error(t('common.error'), 'فشل الحذف');
@@ -518,6 +539,7 @@ const ComplaintList = ({ user }) => {
                             <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>{t('التذكيرات')}</th>
                             <th style={{ padding: '1rem', textAlign: 'right', color: '#94a3b8', fontSize: '0.85rem' }}>{t('complaints.customerName')}</th>
                             <th style={{ padding: '1rem', textAlign: 'right', color: '#94a3b8', fontSize: '0.85rem' }}>{t('complaints.type')}</th>
+                            <th style={{ padding: '1rem', textAlign: 'right', color: '#94a3b8', fontSize: '0.85rem' }}>التفاصيل (الفئة الفرعية)</th>
                             <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>تاريخ الرفع</th>
                             <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>الموظف (مقدم الطلب)</th>
                             <th style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>تاريخ الإغلاق</th>
@@ -536,9 +558,11 @@ const ComplaintList = ({ user }) => {
                             filteredComplaints.map(complaint => {
                                 // ... (Priority Logic same)
                                 const reminderCount = complaint.reminder_count || 0;
-                                let rowStyle = { borderBottom: '1px solid rgba(255, 255, 255, 0.05)', transition: 'background 0.2s' };
+                                let rowStyle = { borderBottom: '1px solid rgba(255, 255, 255, 0.05)', transition: 'background 0.3s, border-left 0.3s' };
 
-                                if (reminderCount >= 4) {
+                                if (complaint.id === lastActedId) {
+                                    rowStyle = { ...rowStyle, background: 'rgba(56, 189, 248, 0.15)', borderLeft: '4px solid #38bdf8' };
+                                } else if (reminderCount >= 4) {
                                     rowStyle = { ...rowStyle, background: 'rgba(239, 68, 68, 0.15)', borderLeft: '3px solid #ef4444' };
                                 } else if (reminderCount >= 2) {
                                     rowStyle = { ...rowStyle, background: 'rgba(234, 179, 8, 0.15)', borderLeft: '3px solid #eab308' };
@@ -570,6 +594,9 @@ const ComplaintList = ({ user }) => {
                                         </td>
                                         <td style={{ padding: '1rem', color: '#cbd5e1' }}>
                                             {complaint.type?.name || t('forms.optional')}
+                                        </td>
+                                        <td style={{ padding: '1rem', color: '#f1f5f9', fontSize: '0.9rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={Object.values(complaint.form_data || {})[0] || '-'}>
+                                            {Object.values(complaint.form_data || {})[0] || '-'}
                                         </td>
                                         <td style={{ padding: '1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem', direction: 'ltr' }}>
                                             {new Date(complaint.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
@@ -640,26 +667,26 @@ const ComplaintList = ({ user }) => {
                                                 )}
 
                                                 {(complaint.status === 'Processing' || complaint.status === 'Pending') && (
-                                                    <>
-                                                        <button
-                                                            onClick={() => initiateSuspension(complaint.id)}
-                                                            style={{ padding: '6px', borderRadius: '4px', background: 'rgba(249, 115, 22, 0.1)', border: 'none', color: '#fb923c', cursor: 'pointer' }}
-                                                            title={t('complaints.statuses.suspended')}
-                                                        >
-                                                            <PauseCircle size={16} />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => {
-                                                                setComplaintToClose(complaint.id);
-                                                                setClosureReason('');
-                                                                setIsClosureModalOpen(true);
-                                                            }}
-                                                            style={{ padding: '6px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.1)', border: 'none', color: '#34d399', cursor: 'pointer' }}
-                                                            title={t('complaints.statuses.resolved')}
-                                                        >
-                                                            <CheckCircle size={16} />
-                                                        </button>
-                                                    </>
+                                                    <button
+                                                        onClick={() => initiateSuspension(complaint.id)}
+                                                        style={{ padding: '6px', borderRadius: '4px', background: 'rgba(249, 115, 22, 0.1)', border: 'none', color: '#fb923c', cursor: 'pointer' }}
+                                                        title={t('complaints.statuses.suspended')}
+                                                    >
+                                                        <PauseCircle size={16} />
+                                                    </button>
+                                                )}
+                                                {complaint.status !== 'Resolved' && (
+                                                    <button
+                                                        onClick={() => {
+                                                            setComplaintToClose(complaint.id);
+                                                            setClosureReason('');
+                                                            setIsClosureModalOpen(true);
+                                                        }}
+                                                        style={{ padding: '6px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.1)', border: 'none', color: '#34d399', cursor: 'pointer' }}
+                                                        title={t('complaints.statuses.resolved')}
+                                                    >
+                                                        <CheckCircle size={16} />
+                                                    </button>
                                                 )}
 
                                                 {/* Delete Button - Admin Only */}
@@ -876,27 +903,27 @@ const ComplaintList = ({ user }) => {
                         )}
 
                         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '1rem' }}>
+                            {selectedComplaint.status !== 'Resolved' && selectedComplaint.status !== 'Suspended' && (
+                                <button
+                                    onClick={() => { setIsDetailsOpen(false); initiateSuspension(selectedComplaint.id); }}
+                                    style={{ padding: '0.6rem 1rem', background: 'rgba(249, 115, 22, 0.1)', border: 'none', borderRadius: '6px', color: '#fb923c', cursor: 'pointer' }}
+                                >
+                                    {t('complaints.statuses.suspended')}
+                                </button>
+                            )}
                             {selectedComplaint.status !== 'Resolved' && (
-                                <>
-                                    <button
-                                        onClick={() => { setIsDetailsOpen(false); initiateSuspension(selectedComplaint.id); }}
-                                        style={{ padding: '0.6rem 1rem', background: 'rgba(249, 115, 22, 0.1)', border: 'none', borderRadius: '6px', color: '#fb923c', cursor: 'pointer' }}
-                                    >
-                                        {t('complaints.statuses.suspended')}
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            // Handle Resolve from Details Modal
-                                            setComplaintToClose(selectedComplaint.id);
-                                            setClosureReason('');
-                                            setIsDetailsOpen(false);
-                                            setIsClosureModalOpen(true);
-                                        }}
-                                        style={{ padding: '0.6rem 1rem', background: '#10b981', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer' }}
-                                    >
-                                        {t('complaints.statuses.resolved')}
-                                    </button>
-                                </>
+                                <button
+                                    onClick={() => {
+                                        // Handle Resolve from Details Modal
+                                        setComplaintToClose(selectedComplaint.id);
+                                        setClosureReason('');
+                                        setIsDetailsOpen(false);
+                                        setIsClosureModalOpen(true);
+                                    }}
+                                    style={{ padding: '0.6rem 1rem', background: '#10b981', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer' }}
+                                >
+                                    {t('complaints.statuses.resolved')}
+                                </button>
                             )}
                             <button
                                 onClick={() => setIsDetailsOpen(false)}
@@ -922,6 +949,12 @@ const ComplaintList = ({ user }) => {
                                 width: '100%', height: '100px', padding: '0.8rem',
                                 background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255, 255, 255, 0.1)',
                                 borderRadius: '8px', color: 'white', marginBottom: '1.5rem', resize: 'none'
+                            }}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    confirmSuspension();
+                                }
                             }}
                             autoFocus
                         />
@@ -956,6 +989,18 @@ const ComplaintList = ({ user }) => {
                                 width: '100%', height: '100px', padding: '0.8rem',
                                 background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255, 255, 255, 0.1)',
                                 borderRadius: '8px', color: 'white', marginBottom: '1.5rem', resize: 'none'
+                            }}
+                            onKeyDown={async (e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    if (!closureReason.trim()) {
+                                        toast.error(t('forms.alert'), t('forms.fillRequired'));
+                                        return;
+                                    }
+                                    await handleUpdateStatus(complaintToClose, 'Resolved', closureReason);
+                                    setIsClosureModalOpen(false);
+                                    setComplaintToClose(null);
+                                }
                             }}
                             autoFocus
                         />
